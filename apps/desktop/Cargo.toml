@@ -1,0 +1,15 @@
+[package]
+name = "verge-desktop"
+edition.workspace = true
+version.workspace = true
+license-file.workspace = true
+
+[[bin]]
+name = "verge"
+path = "src/main.rs"
+
+[dependencies]
+verge-core = { path = "../../core" }
+verge-tool-claude = { path = "../../tools/claude" }
+verge-platform-windows = { path = "../../platform/windows" }
+verge-ui-ambient-windows = { path = "../../ui/ambient/windows" }

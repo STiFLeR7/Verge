@@ -1,0 +1,7 @@
+[package]
+name = "verge-core"
+edition.workspace = true
+version.workspace = true
+license-file.workspace = true
+
+[dependencies]

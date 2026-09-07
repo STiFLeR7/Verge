@@ -1,0 +1,17 @@
+[workspace]
+resolver = "2"
+members = [
+    "core",
+    "tools/claude",
+    "platform/windows",
+    "ui/ambient/windows",
+    "apps/desktop",
+]
+
+[workspace.package]
+edition = "2021"
+version = "0.1.0"
+license-file = "LICENSE"
+
+[profile.release]
+opt-level = 2

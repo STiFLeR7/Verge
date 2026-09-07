@@ -1,0 +1,9 @@
+[package]
+name = "verge-ui-ambient-windows"
+edition.workspace = true
+version.workspace = true
+license-file.workspace = true
+
+[dependencies]
+verge-core = { path = "../../../core" }
+verge-platform-windows = { path = "../../../platform/windows" }
