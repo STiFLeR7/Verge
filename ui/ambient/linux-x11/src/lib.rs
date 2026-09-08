@@ -5,16 +5,18 @@
 //! `OverlayContent` and handing it to the platform's `OverlaySurface` is
 //! the entire job.
 //!
-//! **Known duplication, left as-is deliberately:** `render()` below is
-//! identical to `ui/ambient/windows`'s `render()`. It is not lifted into a
-//! shared crate in this vertical slice because nothing yet proves that
-//! duplication is a real cost rather than an accidental resemblance
-//! between two files that happen to solve the same tiny formatting problem
-//! today — see the architectural-friction notes in
-//! `docs/design/SECOND_VERTICAL_SLICE.md`.
+//! **Not redesigned this pass.** `docs/design/VERGE_AMBIENT_DESIGN.md` and
+//! its Windows implementation (`docs/design/VERGE_AMBIENT_IMPLEMENTATION.md`)
+//! are explicitly Windows-only for this phase. This crate still renders
+//! plain text via `platform/linux/x11`'s existing `PolyText8`-based
+//! drawing — it is adapted here only mechanically, to keep
+//! `cargo build --workspace` green after `core::ports::OverlayContent`
+//! gained a structured shape (`glyphs`/`overflow_count`) for the Windows
+//! capsule. Applying the approved design to Linux/X11 is future work, not
+//! done here.
 
 use verge_core::domain::{AmbientState, Availability, UsageReading};
-use verge_core::ports::OverlayContent;
+use verge_core::ports::{OverlayContent, StateTint, ToolGlyph};
 
 pub fn render(state: &AmbientState) -> OverlayContent {
     let header = format!("Verge · {}", state.account.label);
@@ -36,7 +38,16 @@ pub fn render(state: &AmbientState) -> OverlayContent {
     };
 
     OverlayContent {
-        lines: vec![header, body],
+        glyphs: vec![ToolGlyph {
+            label: state.account.label.clone(),
+            mark: '•',
+            brand_color: (255, 255, 255),
+            state: StateTint::Neutral,
+            has_metric: false,
+            dimmed: false,
+            detail_lines: vec![header, body],
+        }],
+        overflow_count: None,
     }
 }
 
@@ -77,8 +88,9 @@ mod tests {
             most_constrained_window: None,
         };
         let content = render(&state);
-        assert!(content.lines.iter().any(|l| l.contains("Needs sign-in")));
-        assert!(!content.lines.iter().any(|l| l.contains('%')));
+        let lines = &content.glyphs[0].detail_lines;
+        assert!(lines.iter().any(|l| l.contains("Needs sign-in")));
+        assert!(!lines.iter().any(|l| l.contains('%')));
     }
 
     #[test]
@@ -91,7 +103,8 @@ mod tests {
             most_constrained_window: None,
         };
         let content = render(&state);
-        assert!(content.lines.iter().any(|l| l.contains("Not available")));
-        assert!(!content.lines.iter().any(|l| l.contains('%')));
+        let lines = &content.glyphs[0].detail_lines;
+        assert!(lines.iter().any(|l| l.contains("Not available")));
+        assert!(!lines.iter().any(|l| l.contains('%')));
     }
 }

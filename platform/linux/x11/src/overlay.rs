@@ -213,7 +213,17 @@ fn draw(
         }],
     )?;
 
-    for (i, line) in content.lines.iter().enumerate() {
+    // Mechanical adaptation only, not a redesign: `OverlayContent` gained a
+    // structured `glyphs` shape for the Windows capsule
+    // (docs/design/VERGE_AMBIENT_IMPLEMENTATION.md); this still draws the
+    // same plain text lines it always did, just sourced from
+    // `glyphs[0].detail_lines` instead of a top-level `lines` field.
+    let lines = content
+        .glyphs
+        .first()
+        .map(|g| g.detail_lines.as_slice())
+        .unwrap_or(&[]);
+    for (i, line) in lines.iter().enumerate() {
         let baseline_y = 16 + (i as i16 * 16);
         conn.poly_text8(window, gc_text, 8, baseline_y, &text_item8(line))?;
     }

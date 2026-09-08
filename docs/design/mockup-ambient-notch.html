@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Verge — ambient notch mockup</title>
+<style>
+  :root {
+    --bg: #0b0c0f;
+    --notch-bg: #111318;
+    --notch-border: rgba(255,255,255,0.08);
+    --text: #e6e6e6;
+    --dim: #8a8f98;
+    --accent: #6ea8fe;
+    --warn: #e6b450;
+    --danger: #e85c5c;
+    --ok: #4fd18b;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: radial-gradient(ellipse at top, #1a1d24 0%, var(--bg) 60%);
+    font-family: -apple-system, "Segoe UI", Inter, Roboto, sans-serif;
+    color: var(--text);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  /* ---- the notch itself ---- */
+
+  .notch-wrap {
+    position: sticky;
+    top: 0;
+    display: flex;
+    justify-content: center;
+    padding-top: clamp(6px, 1.5vw, 16px);
+    width: 100%;
+    pointer-events: none;
+  }
+
+  .notch {
+    pointer-events: auto;
+    background: var(--notch-bg);
+    border: 1px solid var(--notch-border);
+    border-radius: 999px;
+    display: flex;
+    align-items: center;
+    gap: clamp(8px, 1.2vw, 14px);
+    padding: clamp(6px, 1vw, 10px) clamp(12px, 2vw, 20px);
+    width: clamp(220px, 34vw, 420px);
+    max-width: 92vw;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.45), inset 0 0 0 1px rgba(255,255,255,0.02);
+    cursor: pointer;
+    transition: width 220ms ease, border-radius 220ms ease, padding 220ms ease, background 220ms ease;
+  }
+
+  .notch.expanded {
+    width: clamp(280px, 60vw, 560px);
+    border-radius: 28px;
+    padding: 14px 18px;
+    background: var(--notch-bg);
+  }
+
+  /* collapsed row: glyphs only */
+  .accounts {
+    display: flex;
+    align-items: center;
+    gap: clamp(10px, 1.4vw, 16px);
+    flex: 1;
+    min-width: 0;
+  }
+
+  .account {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+  }
+
+  .ring {
+    --pct: 0;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    flex: none;
+    background:
+      conic-gradient(var(--ring-color, var(--accent)) calc(var(--pct) * 1%), rgba(255,255,255,0.10) 0);
+    display: grid;
+    place-items: center;
+    position: relative;
+  }
+  .ring::after {
+    content: "";
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--notch-bg);
+  }
+
+  .activity-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    flex: none;
+  }
+  .activity-dot.working { background: var(--ok); animation: pulse 1.6s ease-in-out infinite; }
+  .activity-dot.waiting { background: var(--warn); }
+  .activity-dot.idle    { background: var(--dim); }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.35; }
+  }
+
+  .label {
+    font-size: 11px;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .notch:not(.expanded) .label { display: none; }
+
+  /* expanded detail rows */
+  .detail {
+    display: none;
+    flex-direction: column;
+    width: 100%;
+    gap: 10px;
+    padding-top: 10px;
+    margin-top: 10px;
+    border-top: 1px solid var(--notch-border);
+  }
+  .notch.expanded .detail { display: flex; }
+  .notch.expanded .accounts { padding-bottom: 2px; }
+
+  .detail-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    font-size: 14px;
+  }
+  .detail-row .tool { color: var(--text); font-weight: 600; }
+  .detail-row .status { color: var(--dim); text-align: right; font-size: 11px; }
+  .detail-row .status.stale { color: var(--warn); }
+  .detail-row .status.attn { color: var(--danger); }
+
+  /* ---- page scaffolding around the mockup (not part of the notch) ---- */
+
+  .stage {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 28px;
+    padding: 40px 20px 60px;
+    width: 100%;
+    max-width: 720px;
+  }
+
+  h1 { font-size: 14px; color: var(--dim); font-weight: 500; margin: 0; text-align: center; }
+  h1 code { color: var(--text); }
+
+  .controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
+  }
+  button {
+    font: inherit;
+    font-size: 14px;
+    color: var(--text);
+    background: var(--notch-bg);
+    border: 1px solid var(--notch-border);
+    border-radius: 8px;
+    padding: 7px 12px;
+    cursor: pointer;
+  }
+  button:hover { border-color: rgba(255,255,255,0.2); }
+  button.active { border-color: var(--accent); color: var(--accent); }
+
+  .note {
+    font-size: 11px;
+    color: var(--dim);
+    text-align: center;
+    max-width: 460px;
+    line-height: 1.5;
+  }
+</style>
+</head>
+<body>
+
+  <div class="notch-wrap">
+    <div class="notch" id="notch">
+      <div class="accounts" id="accounts"><!-- filled by JS --></div>
+      <div class="detail" id="detail"><!-- filled by JS --></div>
+    </div>
+  </div>
+
+  <div class="stage">
+    <h1>Ambient notch — visual mockup only, no real data. Click the notch to expand.</h1>
+
+    <div class="controls" id="scenarios"></div>
+
+    <p class="note">
+      This is a disposable design reference, not wired to <code>core::domain::AmbientState</code> —
+      it exists to explore shape/motion/hierarchy before <code>ui/ambient</code> renders anything
+      like it natively. Ring = most-constrained usage window; dot = activity
+      (green pulsing = working, amber = waiting on you, gray = idle).
+    </p>
+  </div>
+
+<script>
+  const notch = document.getElementById('notch');
+  const accountsEl = document.getElementById('accounts');
+  const detailEl = document.getElementById('detail');
+  const scenariosEl = document.getElementById('scenarios');
+
+  // Purely illustrative fixture data — not real AmbientState output.
+  const scenarios = {
+    "Nominal": [
+      { tool: "Claude Code", pct: 42, activity: "working", status: "42% · resets in 3h", color: "#6ea8fe" },
+      { tool: "Codex",       pct: 18, activity: "idle",    status: "18% · resets in 6h", color: "#6ea8fe" },
+    ],
+    "Approaching limit": [
+      { tool: "Claude Code", pct: 91, activity: "waiting", status: "91% · resets in 40m", color: "#e6b450", stale: false },
+      { tool: "Cursor",      pct: 55, activity: "idle",    status: "55% · resets in 2h", color: "#6ea8fe" },
+    ],
+    "Degraded / stale": [
+      { tool: "Claude Code", pct: 92, activity: "idle", status: "Retrying · last known 92%, 12 min ago", color: "#8a8f98", stale: true },
+    ],
+    "Needs attention": [
+      { tool: "Codex",  pct: 0, activity: "idle", status: "Needs sign-in", color: "#8a8f98", attn: true },
+      { tool: "Cursor", pct: 0, activity: "idle", status: "Not available on this platform", color: "#8a8f98", attn: true },
+    ],
+  };
+
+  function render(name) {
+    const data = scenarios[name];
+    accountsEl.innerHTML = "";
+    detailEl.innerHTML = "";
+
+    data.forEach(a => {
+      const acc = document.createElement('div');
+      acc.className = 'account';
+      acc.innerHTML = `
+        <span class="ring" style="--pct:${a.pct}; --ring-color:${a.color}"></span>
+        <span class="activity-dot ${a.activity}"></span>
+        <span class="label">${a.tool}</span>
+      `;
+      accountsEl.appendChild(acc);
+
+      const row = document.createElement('div');
+      row.className = 'detail-row';
+      const statusClass = a.attn ? 'attn' : (a.stale ? 'stale' : '');
+      row.innerHTML = `
+        <span class="tool">${a.tool}</span>
+        <span class="status ${statusClass}">${a.status}</span>
+      `;
+      detailEl.appendChild(row);
+    });
+  }
+
+  Object.keys(scenarios).forEach((name, i) => {
+    const btn = document.createElement('button');
+    btn.textContent = name;
+    if (i === 0) btn.classList.add('active');
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('#scenarios button').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      render(name);
+    });
+    scenariosEl.appendChild(btn);
+  });
+
+  notch.addEventListener('click', () => notch.classList.toggle('expanded'));
+
+  render(Object.keys(scenarios)[0]);
+</script>
+
+</body>
+</html>

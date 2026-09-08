@@ -1,0 +1,532 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Verge — macOS corner-strip mockup</title>
+<style>
+  :root {
+    --black: #0a0a0a;
+    --dim: #9a9a9a;
+    --warn: #ff9d3d;
+    --danger: #ff4d4d;
+    --claude: #ff5a2e;
+    --codex: #35d67c;
+    --cursor: #e8d33e;
+    --agy: #7c9bff;
+    --grok: #b98bff;
+    --opencode: #4dd0e1;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    min-height: 100vh;
+    background: #f2f2f3;
+    background-image: radial-gradient(#d9d9db 1px, transparent 1px);
+    background-size: 22px 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: -apple-system, "Segoe UI", Inter, Roboto, sans-serif;
+    padding: 40px;
+  }
+  /* The dot-grid page background and the screen's aurora radial washes
+     directly replicate the reference screenshot's own presentation-board
+     backdrop and desktop wallpaper — kept intentionally, not a decorative
+     add-on. */
+
+  /* ---- screen mockup ---- */
+
+  .screen {
+    position: relative;
+    width: min(980px, 94vw);
+    aspect-ratio: 16 / 11.6;
+    border-radius: 26px;
+    overflow: hidden;
+    background:
+      radial-gradient(120% 90% at 15% 100%, #ff8a3d 0%, transparent 45%),
+      radial-gradient(90% 70% at 30% 60%, #2fae86 0%, transparent 55%),
+      linear-gradient(160deg, #bfe9f2 0%, #6fb8d6 35%, #1c4f6b 100%);
+    box-shadow: 0 30px 60px rgba(0,0,0,0.18);
+  }
+
+  .grain {
+    position: absolute;
+    inset: 0;
+    opacity: 0.05;
+    mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+  }
+
+  /* ---- menu bar ---- */
+
+  .menubar {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 54px;
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    padding: 0 22px;
+    color: #14202a;
+  }
+  .menubar svg { width: 19px; height: 19px; flex: none; }
+  .menubar .datetime { font-size: 18px; letter-spacing: 0.2px; }
+
+  /* ---- corner strip ---- */
+
+  .strip {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 92px;
+    border-radius: 0 26px 0 26px / 0 26px 0 40px;
+    background: var(--black);
+    padding: 12px 0 14px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .tool {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+    cursor: pointer;
+    background: none;
+    border: none;
+    font: inherit;
+    padding: 0;
+  }
+
+  .ring {
+    --pct: 0;
+    --ring-color: #fff;
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    background: conic-gradient(var(--ring-color) calc(var(--pct) * 1%), rgba(255,255,255,0.14) 0);
+    display: grid;
+    place-items: center;
+  }
+  .tool.active .ring { outline: 2px solid rgba(255,255,255,0.5); outline-offset: 2px; }
+
+  .ring-inner {
+    width: 41px;
+    height: 41px;
+    border-radius: 50%;
+    background: #161616;
+    display: grid;
+    place-items: center;
+    font-size: 18px;
+    color: #fff;
+  }
+
+  .warn-dot {
+    position: absolute;
+    top: -1px;
+    right: 10px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--danger);
+    border: 2px solid var(--black);
+    display: none;
+  }
+  .tool.has-warning .warn-dot { display: block; }
+
+  .pct { color: #fff; font-size: 14px; font-weight: 600; }
+
+  .overflow-chip {
+    margin-top: 2px;
+    font-size: 11px;
+    color: var(--dim);
+    background: rgba(255,255,255,0.08);
+    border: none;
+    border-radius: 999px;
+    padding: 6px 10px;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .overflow-chip:hover { color: #fff; }
+
+  /* ---- callout ---- */
+
+  .callout {
+    position: absolute;
+    right: 106px;
+    width: 300px;
+    background: var(--black);
+    border-radius: 18px;
+    padding: 16px 18px 18px;
+    color: #fff;
+    display: none;
+  }
+  .callout.open { display: block; }
+
+  .callout::after {
+    content: "";
+    position: absolute;
+    top: var(--tail-top, 26px);
+    right: -9px;
+    width: 18px;
+    height: 18px;
+    background: var(--black);
+    clip-path: polygon(0 0, 100% 50%, 0 100%);
+  }
+
+  .callout-head {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    margin-bottom: 4px;
+  }
+  .callout-head .glyph { font-size: 18px; }
+  .callout-head .name { font-size: 14px; font-weight: 600; flex: 1; }
+  .callout-head .sessions {
+    font-size: 11px;
+    color: var(--dim);
+    background: rgba(255,255,255,0.08);
+    border-radius: 999px;
+    padding: 3px 8px;
+  }
+  .callout-head .icon-btn {
+    background: none;
+    border: none;
+    color: var(--dim);
+    cursor: pointer;
+    padding: 2px;
+    font-size: 14px;
+    line-height: 1;
+  }
+  .callout-head .icon-btn:hover { color: #fff; }
+
+  .callout-sub { font-size: 11px; color: var(--dim); margin-bottom: 12px; }
+
+  .warning-banner {
+    display: none;
+    align-items: center;
+    gap: 7px;
+    font-size: 11px;
+    color: var(--warn);
+    background: rgba(255, 157, 61, 0.12);
+    border: 1px solid rgba(255, 157, 61, 0.3);
+    border-radius: 8px;
+    padding: 7px 10px;
+    margin-bottom: 12px;
+  }
+  .warning-banner.show { display: flex; }
+
+  .row + .row { margin-top: 12px; }
+  .row-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-size: 11px;
+    margin-bottom: 6px;
+  }
+  .row-head .label { color: #fff; }
+  .row-head .meta { color: var(--dim); }
+
+  .bar {
+    height: 4px;
+    border-radius: 2px;
+    background: rgba(255,255,255,0.14);
+    overflow: hidden;
+    margin-bottom: 6px;
+  }
+  .bar > span { display: block; height: 100%; border-radius: 2px; }
+
+  .row-used { font-size: 11px; color: var(--dim); }
+  .row-used.warn { color: var(--warn); }
+
+  .permissions-list { display: flex; flex-direction: column; gap: 10px; }
+  .perm-item {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+    font-size: 11px;
+    color: var(--dim);
+  }
+  .perm-item .text { line-height: 1.5; }
+  .perm-item .text strong { color: #fff; display: block; font-size: 11px; font-weight: 600; }
+
+  .switch {
+    flex: none;
+    width: 30px;
+    height: 17px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.16);
+    position: relative;
+    cursor: pointer;
+    border: none;
+    padding: 0;
+  }
+  .switch::after {
+    content: "";
+    position: absolute;
+    top: 2px; left: 2px;
+    width: 13px; height: 13px;
+    border-radius: 50%;
+    background: #fff;
+    transition: left 140ms ease;
+  }
+  .switch.on { background: var(--codex); }
+  .switch.on::after { left: 15px; }
+
+  .view { display: none; }
+  .view.active { display: block; }
+
+  .caption {
+    position: absolute;
+    bottom: -34px;
+    left: 0;
+    right: 0;
+    text-align: center;
+    font-size: 11px;
+    color: #9a9a9a;
+  }
+</style>
+</head>
+<body>
+
+<div style="position: relative;">
+  <div class="screen" id="screen">
+    <div class="grain"></div>
+
+    <div class="menubar">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 3l18 18M9 9v3a3 3 0 0 0 3 3 3 3 0 0 0 2.1-.9M15 9V6a3 3 0 0 0-6 0v1M5 10v2a7 7 0 0 0 10.6 6M19 12a7 7 0 0 1-1 3.6M12 19v3"/></svg>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2 8.5a17 17 0 0 1 20 0M5 12a12 12 0 0 1 14 0M8.5 15.5a7 7 0 0 1 7 0"/><circle cx="12" cy="19" r="1" fill="currentColor" stroke="none"/></svg>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4.4 3.6-7 8-7s8 2.6 8 7"/></svg>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="6" width="18" height="4" rx="2"/><rect x="3" y="14" width="18" height="4" rx="2"/><circle cx="15" cy="8" r="1.6" fill="currentColor" stroke="none"/><circle cx="9" cy="16" r="1.6" fill="currentColor" stroke="none"/></svg>
+      <span class="datetime">Thu 27 Aug&nbsp;&nbsp;11:22</span>
+    </div>
+
+    <div class="strip" id="strip">
+      <!-- tool buttons injected by JS -->
+      <button class="overflow-chip" id="overflow-chip">+4 more</button>
+    </div>
+
+    <div class="callout" id="callout">
+      <div class="callout-head">
+        <span class="glyph" id="callout-glyph">✳</span>
+        <span class="name" id="callout-name">Claude Code</span>
+        <span class="sessions" id="callout-sessions">2 sessions</span>
+        <button class="icon-btn" id="perm-toggle" title="Permissions">⚙</button>
+      </div>
+      <div class="callout-sub" id="callout-sub">Auto-detected · reading local state only</div>
+
+      <div class="view active" id="view-usage">
+        <div class="warning-banner" id="warning-banner">⚠ Approaching limit on <span id="warning-model"></span></div>
+        <div id="model-rows"></div>
+      </div>
+
+      <div class="view" id="view-permissions">
+        <div class="permissions-list" id="permissions-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="caption">Mockup only — not wired to real detection or core::domain::AmbientState.</div>
+</div>
+
+<script>
+  const tools = [
+    {
+      id: "claude", name: "Claude Code", glyph: "✳", color: "var(--claude)", sessions: 2,
+      permissions: [
+        { text: "OAuth session token", detail: "read-only, memory-only, never written to disk", on: true },
+        { text: "Local usage stats file", detail: "~/.claude/stats-cache.json, read-only", on: true },
+      ],
+      models: [
+        { name: "Claude Opus 4.5", pct: 91, resets: "Resets in 51 min" },
+        { name: "Claude Sonnet 5", pct: 34, resets: "Resets Thu 12:00 AM" },
+      ],
+    },
+    {
+      id: "codex", name: "Codex", glyph: "◈", color: "var(--codex)", sessions: 1,
+      permissions: [
+        { text: "Local auth file presence check", detail: "$CODEX_HOME/auth.json, read-only", on: true },
+      ],
+      models: [
+        { name: "gpt-5.1-codex", pct: 21, resets: "Resets in 4h 10min" },
+      ],
+    },
+    {
+      id: "cursor", name: "Cursor", glyph: "▲", color: "var(--cursor)", sessions: 0,
+      permissions: [
+        { text: "Local session/API key file", detail: "read-only", on: true },
+      ],
+      models: [
+        { name: "claude-sonnet-5 (via Cursor)", pct: 52, resets: "Resets in 2h 5min" },
+      ],
+    },
+    {
+      id: "agy", name: "Antigravity", glyph: "◎", color: "var(--agy)", sessions: 1,
+      permissions: [
+        { text: "Local RPC port discovery", detail: "process-table scraping, read-only", on: false },
+      ],
+      models: [
+        { name: "Gemini 3 Pro", pct: 15, resets: "Resets in 6h" },
+      ],
+    },
+    {
+      id: "grok", name: "Grok", glyph: "✶", color: "var(--grok)", sessions: 0,
+      permissions: [
+        { text: "Local auth file", detail: "read-only", on: true },
+      ],
+      models: [
+        { name: "Grok 4.1", pct: 8, resets: "Resets in 12h" },
+      ],
+    },
+    {
+      id: "opencode", name: "OpenCode", glyph: "◫", color: "var(--opencode)", sessions: 1,
+      permissions: [
+        { text: "Local config file", detail: "read-only", on: true },
+      ],
+      models: [
+        { name: "local model", pct: 40, resets: "No published limit" },
+      ],
+    },
+  ];
+
+  // Detected but not expanded in this mockup — representative of a wider
+  // auto-discovery scan, not implying any of these have been empirically
+  // researched (none have, per docs/design/*-local-state.md precedent).
+  const overflowNames = ["Hermes", "Perplexity", "Pi", "KiloCode"];
+
+  const strip = document.getElementById('strip');
+  const overflowChip = document.getElementById('overflow-chip');
+  const callout = document.getElementById('callout');
+  const screen = document.getElementById('screen');
+
+  const WARN_THRESHOLD = 85;
+
+  tools.forEach(t => {
+    const btn = document.createElement('button');
+    btn.className = 'tool';
+    btn.dataset.tool = t.id;
+    const hasWarning = t.models.some(m => m.pct >= WARN_THRESHOLD);
+    if (hasWarning) btn.classList.add('has-warning');
+    const topPct = Math.max(...t.models.map(m => m.pct));
+    btn.innerHTML = `
+      <span class="warn-dot"></span>
+      <span class="ring" style="--pct:${topPct}; --ring-color:${t.color}">
+        <span class="ring-inner">${t.glyph}</span>
+      </span>
+      <span class="pct">${topPct}%</span>
+    `;
+    strip.insertBefore(btn, overflowChip);
+  });
+
+  overflowChip.textContent = `+${overflowNames.length} more`;
+  overflowChip.title = overflowNames.join(", ");
+
+  let currentView = 'usage';
+
+  // Positions the callout so it's vertically aligned with whichever ring
+  // was actually clicked, and points its tail at that ring's center —
+  // fixes the earlier version's bug of a fixed `top` regardless of which
+  // tool was selected.
+  function positionCallout(button) {
+    const btnBox = button.getBoundingClientRect();
+    const screenBox = screen.getBoundingClientRect();
+
+    let top = (btnBox.top - screenBox.top) - 8;
+    const maxTop = screen.clientHeight - callout.offsetHeight - 10;
+    top = Math.max(60, Math.min(top, maxTop));
+    callout.style.top = top + 'px';
+
+    const tailTop = (btnBox.top + btnBox.height / 2) - (screenBox.top + top) - 9;
+    callout.style.setProperty('--tail-top', tailTop + 'px');
+  }
+
+  function renderUsage(t) {
+    const banner = document.getElementById('warning-banner');
+    const warningModel = t.models.find(m => m.pct >= WARN_THRESHOLD);
+    if (warningModel) {
+      banner.classList.add('show');
+      document.getElementById('warning-model').textContent = warningModel.name;
+    } else {
+      banner.classList.remove('show');
+    }
+
+    const rows = document.getElementById('model-rows');
+    rows.innerHTML = t.models.map(m => `
+      <div class="row">
+        <div class="row-head"><span class="label">${m.name}</span><span class="meta">${m.resets}</span></div>
+        <div class="bar"><span style="width:${m.pct}%; background:${m.pct >= WARN_THRESHOLD ? 'var(--warn)' : t.color};"></span></div>
+        <div class="row-used ${m.pct >= WARN_THRESHOLD ? 'warn' : ''}">${m.pct}% used</div>
+      </div>
+    `).join('');
+  }
+
+  function renderPermissions(t) {
+    const list = document.getElementById('permissions-list');
+    list.innerHTML = t.permissions.map((p, i) => `
+      <div class="perm-item">
+        <div class="text"><strong>${p.text}</strong>${p.detail}</div>
+        <button class="switch ${p.on ? 'on' : ''}" data-perm-index="${i}"></button>
+      </div>
+    `).join('');
+    list.querySelectorAll('.switch').forEach(sw => {
+      sw.addEventListener('click', () => {
+        const idx = Number(sw.dataset.permIndex);
+        t.permissions[idx].on = !t.permissions[idx].on;
+        sw.classList.toggle('on', t.permissions[idx].on);
+      });
+    });
+  }
+
+  function show(toolId, button) {
+    const t = tools.find(x => x.id === toolId);
+    document.getElementById('callout-glyph').textContent = t.glyph;
+    document.getElementById('callout-glyph').style.color = t.color;
+    document.getElementById('callout-name').textContent = t.name;
+    document.getElementById('callout-sessions').textContent =
+      t.sessions === 0 ? 'idle' : `${t.sessions} session${t.sessions > 1 ? 's' : ''}`;
+
+    renderUsage(t);
+    renderPermissions(t);
+    setView('usage');
+
+    callout.classList.add('open');
+    strip.querySelectorAll('.tool').forEach(b => b.classList.toggle('active', b.dataset.tool === toolId));
+    positionCallout(button);
+  }
+
+  function setView(view) {
+    currentView = view;
+    document.getElementById('view-usage').classList.toggle('active', view === 'usage');
+    document.getElementById('view-permissions').classList.toggle('active', view === 'permissions');
+    document.getElementById('perm-toggle').textContent = view === 'usage' ? '⚙' : '←';
+  }
+
+  strip.querySelectorAll('.tool').forEach(btn => {
+    btn.addEventListener('click', () => show(btn.dataset.tool, btn));
+  });
+
+  document.getElementById('perm-toggle').addEventListener('click', () => {
+    setView(currentView === 'usage' ? 'permissions' : 'usage');
+  });
+
+  overflowChip.addEventListener('click', () => {
+    alert('Also detected (not expanded in this mockup):\n' + overflowNames.join('\n'));
+  });
+
+  // open on the first tool by default, once layout has settled
+  window.addEventListener('load', () => {
+    const first = strip.querySelector('.tool');
+    show(first.dataset.tool, first);
+  });
+</script>
+
+</body>
+</html>

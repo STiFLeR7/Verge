@@ -45,7 +45,12 @@ fn main() -> std::io::Result<()> {
     let usage_source =
         ClaudeCodeUsageSource::new(WindowsCredentialStore::discover(), stats_cache_path);
 
-    let next_state = move || -> AmbientState {
+    // A `Vec` of exactly one real state today — `ui/ambient/windows`'s
+    // density cap and future multi-tool composition already have a real
+    // home (see docs/design/VERGE_AMBIENT_IMPLEMENTATION.md), so adding a
+    // second real tool on Windows later only means constructing a second
+    // `AmbientState` here, not changing the render pipeline's shape.
+    let next_states = move || -> Vec<AmbientState> {
         let snapshot = usage_source.fetch(&account).unwrap_or_else(|availability| {
             verge_core::domain::UsageSnapshot {
                 account: account.clone(),
@@ -53,10 +58,10 @@ fn main() -> std::io::Result<()> {
                 windows: vec![],
             }
         });
-        project_ambient_state(&snapshot)
+        vec![project_ambient_state(&snapshot)]
     };
 
-    verge_ui_ambient_windows::run_ambient_shell(next_state)
+    verge_ui_ambient_windows::run_ambient_shell(next_states)
 }
 
 #[cfg(not(windows))]
