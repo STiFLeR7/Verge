@@ -20,7 +20,10 @@ impl WindowsCredentialStore {
     pub fn discover() -> Self {
         let mut known_paths = Vec::new();
         if let Some(home) = std::env::var_os("USERPROFILE").map(PathBuf::from) {
-            known_paths.push(("claude-code", home.join(".claude").join(".credentials.json")));
+            known_paths.push((
+                "claude-code",
+                home.join(".claude").join(".credentials.json"),
+            ));
         }
         Self { known_paths }
     }
@@ -38,7 +41,9 @@ impl CredentialStore for WindowsCredentialStore {
             Err(e) if e.kind() == std::io::ErrorKind::PermissionDenied => {
                 CredentialOutcome::AccessDenied
             }
-            Err(e) => CredentialOutcome::StoreUnavailable { reason: e.to_string() },
+            Err(e) => CredentialOutcome::StoreUnavailable {
+                reason: e.to_string(),
+            },
         }
     }
 }
@@ -49,15 +54,26 @@ mod tests {
 
     #[test]
     fn unknown_key_is_not_found() {
-        let store = WindowsCredentialStore { known_paths: vec![] };
-        assert!(matches!(store.find("some-other-tool"), CredentialOutcome::NotFound));
+        let store = WindowsCredentialStore {
+            known_paths: vec![],
+        };
+        assert!(matches!(
+            store.find("some-other-tool"),
+            CredentialOutcome::NotFound
+        ));
     }
 
     #[test]
     fn missing_file_for_known_key_is_not_found_not_error() {
         let store = WindowsCredentialStore {
-            known_paths: vec![("claude-code", PathBuf::from("Z:\\definitely\\does\\not\\exist.json"))],
+            known_paths: vec![(
+                "claude-code",
+                PathBuf::from("Z:\\definitely\\does\\not\\exist.json"),
+            )],
         };
-        assert!(matches!(store.find("claude-code"), CredentialOutcome::NotFound));
+        assert!(matches!(
+            store.find("claude-code"),
+            CredentialOutcome::NotFound
+        ));
     }
 }

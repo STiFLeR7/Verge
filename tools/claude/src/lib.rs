@@ -35,7 +35,10 @@ pub struct ClaudeCodeUsageSource<C: CredentialStore> {
 
 impl<C: CredentialStore> ClaudeCodeUsageSource<C> {
     pub fn new(credential_store: C, stats_cache_path: PathBuf) -> Self {
-        Self { credential_store, stats_cache_path }
+        Self {
+            credential_store,
+            stats_cache_path,
+        }
     }
 }
 
@@ -68,14 +71,18 @@ impl<C: CredentialStore> UsageSource for ClaudeCodeUsageSource<C> {
             }
         }
 
-        let raw = std::fs::read_to_string(&self.stats_cache_path)
-            .map_err(|e| Availability::Error { diagnostic: format!("reading stats-cache.json: {e}") })?;
+        let raw =
+            std::fs::read_to_string(&self.stats_cache_path).map_err(|e| Availability::Error {
+                diagnostic: format!("reading stats-cache.json: {e}"),
+            })?;
         let modified = std::fs::metadata(&self.stats_cache_path)
             .and_then(|m| m.modified())
             .unwrap_or_else(|_| SystemTime::now());
 
-        let stats: stats_cache::StatsCache = serde_json::from_str(&raw)
-            .map_err(|e| Availability::Error { diagnostic: format!("parsing stats-cache.json: {e}") })?;
+        let stats: stats_cache::StatsCache =
+            serde_json::from_str(&raw).map_err(|e| Availability::Error {
+                diagnostic: format!("parsing stats-cache.json: {e}"),
+            })?;
 
         let windows = match stats.most_recent_day_message_count() {
             Some((date, count)) => vec![UsageWindow {

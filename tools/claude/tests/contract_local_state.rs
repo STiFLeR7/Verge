@@ -18,7 +18,11 @@ impl CredentialStore for FakeCredentialStore {
 }
 
 fn account() -> Account {
-    Account { tool: ToolId::ClaudeCode, label: "Claude Code".into(), provenance: "test".into() }
+    Account {
+        tool: ToolId::ClaudeCode,
+        label: "Claude Code".into(),
+        provenance: "test".into(),
+    }
 }
 
 fn write_fixture(json: &str) -> tempfile_path::TempJsonFile {
@@ -27,7 +31,9 @@ fn write_fixture(json: &str) -> tempfile_path::TempJsonFile {
 
 #[test]
 fn no_credential_is_unauthenticated_not_an_error() {
-    let store = FakeCredentialStore { outcome: || CredentialOutcome::NotFound };
+    let store = FakeCredentialStore {
+        outcome: || CredentialOutcome::NotFound,
+    };
     let fixture = write_fixture(r#"{"dailyActivity": []}"#);
     let source = ClaudeCodeUsageSource::new(store, fixture.path());
 
@@ -36,7 +42,9 @@ fn no_credential_is_unauthenticated_not_an_error() {
 
 #[test]
 fn access_denied_credential_is_access_denied_not_unauthenticated() {
-    let store = FakeCredentialStore { outcome: || CredentialOutcome::AccessDenied };
+    let store = FakeCredentialStore {
+        outcome: || CredentialOutcome::AccessDenied,
+    };
     let fixture = write_fixture(r#"{"dailyActivity": []}"#);
     let source = ClaudeCodeUsageSource::new(store, fixture.path());
 
@@ -89,7 +97,11 @@ mod tempfile_path {
     impl TempJsonFile {
         pub fn new(json: &str) -> Self {
             let mut path = std::env::temp_dir();
-            path.push(format!("verge-claude-contract-{}-{}.json", std::process::id(), fastrand()));
+            path.push(format!(
+                "verge-claude-contract-{}-{}.json",
+                std::process::id(),
+                fastrand()
+            ));
             let mut file = std::fs::File::create(&path).expect("create temp fixture");
             file.write_all(json.as_bytes()).expect("write temp fixture");
             Self { path }
@@ -108,6 +120,9 @@ mod tempfile_path {
 
     fn fastrand() -> u64 {
         use std::time::{SystemTime, UNIX_EPOCH};
-        SystemTime::now().duration_since(UNIX_EPOCH).unwrap().subsec_nanos() as u64
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .subsec_nanos() as u64
     }
 }

@@ -17,5 +17,8 @@ pub struct OverlayContent {
 /// surface is closed; a future revision may need a non-blocking variant
 /// once more than one platform implements this port.
 pub trait OverlaySurface {
-    fn run(self, content_source: impl Fn() -> OverlayContent + Send + 'static) -> std::io::Result<()>;
+    fn run(
+        self,
+        content_source: impl Fn() -> OverlayContent + Send + 'static,
+    ) -> std::io::Result<()>;
 }

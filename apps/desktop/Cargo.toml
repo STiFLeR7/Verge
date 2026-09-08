@@ -8,8 +8,15 @@ license-file.workspace = true
 name = "verge"
 path = "src/main.rs"
 
+[[bin]]
+name = "verge-linux-x11"
+path = "src/main_linux_x11.rs"
+
 [dependencies]
 verge-core = { path = "../../core" }
 verge-tool-claude = { path = "../../tools/claude" }
+verge-tool-codex = { path = "../../tools/codex" }
 verge-platform-windows = { path = "../../platform/windows" }
+verge-platform-linux-x11 = { path = "../../platform/linux/x11" }
 verge-ui-ambient-windows = { path = "../../ui/ambient/windows" }
+verge-ui-ambient-linux-x11 = { path = "../../ui/ambient/linux-x11" }

@@ -3,8 +3,11 @@ resolver = "2"
 members = [
     "core",
     "tools/claude",
+    "tools/codex",
     "platform/windows",
+    "platform/linux/x11",
     "ui/ambient/windows",
+    "ui/ambient/linux-x11",
     "apps/desktop",
 ]
 

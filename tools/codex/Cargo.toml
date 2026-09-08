@@ -1,0 +1,9 @@
+[package]
+name = "verge-tool-codex"
+edition.workspace = true
+version.workspace = true
+license-file.workspace = true
+
+[dependencies]
+verge-core = { path = "../../core" }
+serde_json = "1"

@@ -50,7 +50,10 @@ mod tests {
             ]
         }"#;
         let cache: StatsCache = serde_json::from_str(json).unwrap();
-        assert_eq!(cache.most_recent_day_message_count(), Some(("2026-03-05", 2432)));
+        assert_eq!(
+            cache.most_recent_day_message_count(),
+            Some(("2026-03-05", 2432))
+        );
     }
 
     #[test]

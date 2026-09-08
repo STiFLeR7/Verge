@@ -69,13 +69,26 @@ mod tests {
         }
     }
 
+    /// A second tool's identity, used to prove this projection is generic
+    /// over `ToolId` rather than coincidentally correct for one — see
+    /// `docs/design/SECOND_VERTICAL_SLICE.md`.
+    fn codex_account() -> Account {
+        Account {
+            tool: ToolId::Codex,
+            label: "Codex".into(),
+            provenance: "test fixture".into(),
+        }
+    }
+
     fn window(name: &str, reading: super::super::UsageReading) -> UsageWindow {
         UsageWindow {
             name: name.into(),
             reading,
             resets_at: None,
             fidelity: Fidelity::Derived,
-            recency: Recency::Live { as_of: SystemTime::now() },
+            recency: Recency::Live {
+                as_of: SystemTime::now(),
+            },
         }
     }
 
@@ -88,6 +101,25 @@ mod tests {
         };
         let state = project_ambient_state(&snapshot);
         assert!(state.most_constrained_window.is_none());
+    }
+
+    /// `Unsupported` is the outcome Codex specifically needs (no local
+    /// usage cache exists — see docs/design/codex-linux-local-state.md).
+    /// Proves the same "never invent" chokepoint applies regardless of
+    /// which tool's `Account` is attached, and regardless of *why*
+    /// availability isn't `Available`, not just for `Unauthenticated`.
+    #[test]
+    fn unsupported_availability_never_yields_a_window_for_a_second_tool() {
+        let snapshot = UsageSnapshot {
+            account: codex_account(),
+            availability: Availability::Unsupported {
+                reason: "no local usage cache".into(),
+            },
+            windows: vec![],
+        };
+        let state = project_ambient_state(&snapshot);
+        assert!(state.most_constrained_window.is_none());
+        assert_eq!(state.account.tool, ToolId::Codex);
     }
 
     #[test]
@@ -125,6 +157,8 @@ mod tests {
             availability: Availability::Available,
             windows: vec![],
         };
-        assert!(project_ambient_state(&snapshot).most_constrained_window.is_none());
+        assert!(project_ambient_state(&snapshot)
+            .most_constrained_window
+            .is_none());
     }
 }

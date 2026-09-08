@@ -32,7 +32,9 @@ pub enum CredentialOutcome {
     /// No keyring/store daemon running, or (on this vertical slice's
     /// Windows implementation) the backing file could not be read for a
     /// reason other than "does not exist" or "permission denied".
-    StoreUnavailable { reason: String },
+    StoreUnavailable {
+        reason: String,
+    },
 }
 
 /// Read (never write) a named secret from the OS's secure store, or — on a

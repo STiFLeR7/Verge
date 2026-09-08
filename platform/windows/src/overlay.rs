@@ -28,18 +28,21 @@ use verge_core::ports::{OverlayContent, OverlaySurface};
 use windows::core::PCWSTR;
 use windows::Win32::Foundation::{COLORREF, HWND, LPARAM, LRESULT, RECT, WPARAM};
 use windows::Win32::Graphics::Gdi::{
-    BeginPaint, CreateSolidBrush, DrawTextW, EndPaint, FillRect, SetBkMode, SetTextColor,
-    DT_LEFT, DT_NOCLIP, DT_WORDBREAK, PAINTSTRUCT, TRANSPARENT as GDI_TRANSPARENT,
+    BeginPaint, CreateSolidBrush, DrawTextW, EndPaint, FillRect, SetBkMode, SetTextColor, DT_LEFT,
+    DT_NOCLIP, DT_WORDBREAK, PAINTSTRUCT, TRANSPARENT as GDI_TRANSPARENT,
 };
 use windows::Win32::System::LibraryLoader::GetModuleHandleW;
-use windows::Win32::UI::HiDpi::{SetProcessDpiAwarenessContext, DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2};
+use windows::Win32::UI::HiDpi::{
+    SetProcessDpiAwarenessContext, DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2,
+};
 use windows::Win32::UI::WindowsAndMessaging::{
     CreateWindowExW, DefWindowProcW, DispatchMessageW, GetClientRect, GetMessageW,
     GetSystemMetrics, GetWindowLongPtrW, LoadCursorW, PostQuitMessage, RegisterClassExW,
     SetLayeredWindowAttributes, SetTimer, SetWindowLongPtrW, SetWindowPos, ShowWindow,
     TranslateMessage, HWND_TOPMOST, IDC_ARROW, LWA_COLORKEY, MSG, SM_CXSCREEN, SM_CYSCREEN,
-    SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SW_SHOWNOACTIVATE, WM_DESTROY, WM_PAINT, WM_TIMER, WNDCLASSEXW, WS_EX_LAYERED,
-    WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_EX_TRANSPARENT, WS_POPUP,
+    SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SW_SHOWNOACTIVATE, WM_DESTROY, WM_PAINT, WM_TIMER,
+    WNDCLASSEXW, WS_EX_LAYERED, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TOPMOST,
+    WS_EX_TRANSPARENT, WS_POPUP,
 };
 
 const WINDOW_WIDTH: i32 = 320;
@@ -76,12 +79,17 @@ impl Default for WindowsOverlaySurface {
 }
 
 impl OverlaySurface for WindowsOverlaySurface {
-    fn run(self, content_source: impl Fn() -> OverlayContent + Send + 'static) -> std::io::Result<()> {
+    fn run(
+        self,
+        content_source: impl Fn() -> OverlayContent + Send + 'static,
+    ) -> std::io::Result<()> {
         unsafe { run_message_loop(content_source) }
     }
 }
 
-unsafe fn run_message_loop(content_source: impl Fn() -> OverlayContent + Send + 'static) -> std::io::Result<()> {
+unsafe fn run_message_loop(
+    content_source: impl Fn() -> OverlayContent + Send + 'static,
+) -> std::io::Result<()> {
     // Per-Monitor-V2 DPI awareness: without this, Windows silently
     // virtualizes coordinates for this process (the same bug the spike's
     // own PowerShell test harness hit before declaring this context).
@@ -111,7 +119,9 @@ unsafe fn run_message_loop(content_source: impl Fn() -> OverlayContent + Send + 
     let boxed_source: Box<dyn Fn() -> OverlayContent> = Box::new(content_source);
     let state = Arc::new(WindowState {
         content_source: boxed_source,
-        current: Mutex::new(OverlayContent { lines: vec!["Verge starting…".to_string()] }),
+        current: Mutex::new(OverlayContent {
+            lines: vec!["Verge starting…".to_string()],
+        }),
     });
     let state_ptr = Arc::into_raw(state.clone());
 
@@ -134,11 +144,16 @@ unsafe fn run_message_loop(content_source: impl Fn() -> OverlayContent + Send + 
     )
     .map_err(|e| std::io::Error::other(format!("CreateWindowExW: {e}")))?;
 
-    SetWindowLongPtrW(hwnd, windows::Win32::UI::WindowsAndMessaging::GWLP_USERDATA, state_ptr as isize);
+    SetWindowLongPtrW(
+        hwnd,
+        windows::Win32::UI::WindowsAndMessaging::GWLP_USERDATA,
+        state_ptr as isize,
+    );
 
     // Now safe to add click-through: the window already has its real,
     // final position and size.
-    let current_ex_style = GetWindowLongPtrW(hwnd, windows::Win32::UI::WindowsAndMessaging::GWL_EXSTYLE);
+    let current_ex_style =
+        GetWindowLongPtrW(hwnd, windows::Win32::UI::WindowsAndMessaging::GWL_EXSTYLE);
     SetWindowLongPtrW(
         hwnd,
         windows::Win32::UI::WindowsAndMessaging::GWL_EXSTYLE,
@@ -154,7 +169,15 @@ unsafe fn run_message_loop(content_source: impl Fn() -> OverlayContent + Send + 
     // collapses the window to a zero-size rect at the screen origin — a
     // real bug hit and fixed during this slice's own bring-up, not a
     // finding from the spike.
-    let _ = SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOACTIVATE | SWP_NOMOVE | SWP_NOSIZE);
+    let _ = SetWindowPos(
+        hwnd,
+        HWND_TOPMOST,
+        0,
+        0,
+        0,
+        0,
+        SWP_NOACTIVATE | SWP_NOMOVE | SWP_NOSIZE,
+    );
     let _ = SetTimer(hwnd, TIMER_REFRESH, REFRESH_MS, None);
 
     let mut msg = MSG::default();
@@ -170,16 +193,30 @@ unsafe fn run_message_loop(content_source: impl Fn() -> OverlayContent + Send + 
     Ok(())
 }
 
-unsafe extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
+unsafe extern "system" fn window_proc(
+    hwnd: HWND,
+    msg: u32,
+    wparam: WPARAM,
+    lparam: LPARAM,
+) -> LRESULT {
     match msg {
         WM_TIMER => {
             if wparam.0 == TIMER_REFRESH {
-                let ptr = GetWindowLongPtrW(hwnd, windows::Win32::UI::WindowsAndMessaging::GWLP_USERDATA);
+                let ptr =
+                    GetWindowLongPtrW(hwnd, windows::Win32::UI::WindowsAndMessaging::GWLP_USERDATA);
                 if ptr != 0 {
                     let state = &*(ptr as *const WindowState<Box<dyn Fn() -> OverlayContent>>);
                     let fresh = (state.content_source)();
                     *state.current.lock().unwrap() = fresh;
-                    let _ = SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOACTIVATE | SWP_NOMOVE | SWP_NOSIZE);
+                    let _ = SetWindowPos(
+                        hwnd,
+                        HWND_TOPMOST,
+                        0,
+                        0,
+                        0,
+                        0,
+                        SWP_NOACTIVATE | SWP_NOMOVE | SWP_NOSIZE,
+                    );
                     let _ = windows::Win32::Graphics::Gdi::InvalidateRect(hwnd, None, true);
                 }
             }
@@ -193,7 +230,8 @@ unsafe extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lpar
             let _ = GetClientRect(hwnd, &mut rect);
             FillRect(hdc, &rect, brush);
 
-            let ptr = GetWindowLongPtrW(hwnd, windows::Win32::UI::WindowsAndMessaging::GWLP_USERDATA);
+            let ptr =
+                GetWindowLongPtrW(hwnd, windows::Win32::UI::WindowsAndMessaging::GWLP_USERDATA);
             if ptr != 0 {
                 let state = &*(ptr as *const WindowState<Box<dyn Fn() -> OverlayContent>>);
                 let content = state.current.lock().unwrap();
@@ -204,16 +242,24 @@ unsafe extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lpar
                 let mut text_rect = rect;
                 text_rect.left += 8;
                 text_rect.top += 8;
-                DrawTextW(hdc, &mut wide, &mut text_rect, DT_LEFT | DT_WORDBREAK | DT_NOCLIP);
+                DrawTextW(
+                    hdc,
+                    &mut wide,
+                    &mut text_rect,
+                    DT_LEFT | DT_WORDBREAK | DT_NOCLIP,
+                );
             }
 
             let _ = EndPaint(hwnd, &ps);
             LRESULT(0)
         }
         WM_DESTROY => {
-            let ptr = GetWindowLongPtrW(hwnd, windows::Win32::UI::WindowsAndMessaging::GWLP_USERDATA);
+            let ptr =
+                GetWindowLongPtrW(hwnd, windows::Win32::UI::WindowsAndMessaging::GWLP_USERDATA);
             if ptr != 0 {
-                drop(Arc::from_raw(ptr as *const WindowState<Box<dyn Fn() -> OverlayContent>>));
+                drop(Arc::from_raw(
+                    ptr as *const WindowState<Box<dyn Fn() -> OverlayContent>>,
+                ));
             }
             PostQuitMessage(0);
             LRESULT(0)

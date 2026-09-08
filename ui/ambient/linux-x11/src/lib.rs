@@ -1,17 +1,21 @@
-//! Thin Windows ambient shell: render + refresh only, no business logic.
+//! Thin Linux/X11 ambient shell: render + refresh only, no business logic.
 //!
-//! A contributor reaching for a webview API, an HTTP client, or a tool
-//! adapter here is a structural smell — that all belongs to `core`,
-//! `tools/`, or `platform/windows`, never here. This crate's only job is to
-//! turn an `AmbientState` into an `OverlayContent` and hand it to the
-//! platform's `OverlaySurface`.
+//! Same discipline as `ui/ambient/windows`: no webview API, no HTTP client,
+//! no tool adapter reference here — turning an `AmbientState` into an
+//! `OverlayContent` and handing it to the platform's `OverlaySurface` is
+//! the entire job.
+//!
+//! **Known duplication, left as-is deliberately:** `render()` below is
+//! identical to `ui/ambient/windows`'s `render()`. It is not lifted into a
+//! shared crate in this vertical slice because nothing yet proves that
+//! duplication is a real cost rather than an accidental resemblance
+//! between two files that happen to solve the same tiny formatting problem
+//! today — see the architectural-friction notes in
+//! `docs/design/SECOND_VERTICAL_SLICE.md`.
 
 use verge_core::domain::{AmbientState, Availability, UsageReading};
 use verge_core::ports::OverlayContent;
 
-/// Pure formatting: `AmbientState` -> the lines the surface renders. Kept
-/// separate from `run_ambient_shell` so it is unit-testable without a real
-/// window.
 pub fn render(state: &AmbientState) -> OverlayContent {
     let header = format!("Verge · {}", state.account.label);
 
@@ -40,32 +44,27 @@ pub fn render(state: &AmbientState) -> OverlayContent {
 /// refresh cadence to get the latest `AmbientState` to render. Blocks until
 /// the surface is closed.
 ///
-/// `#[cfg(windows)]`-gated so this crate — and anything depending on it —
-/// still compiles on non-Windows targets; keeping `render()` above ungated
-/// means the pure formatting logic stays unit-testable on every platform.
-/// This split was forced by the second vertical slice: with both a Windows
-/// and a Linux/X11 binary living in the same `apps/desktop` package (which
-/// shares one `[dependencies]` table regardless of which binary is being
-/// built), an unconditional `use` of a `cfg(windows)`-gated item here broke
-/// the Linux build entirely — see docs/design/SECOND_VERTICAL_SLICE.md.
-#[cfg(windows)]
+/// `#[cfg(unix)]`-gated because the X11 platform implementation it calls
+/// into is: keeping `render()` above ungated means the pure formatting
+/// logic stays unit-testable on every platform, exactly like
+/// `ui/ambient/windows` keeps `render()` free of any Win32 dependency.
+#[cfg(unix)]
 pub fn run_ambient_shell(
     next_state: impl Fn() -> AmbientState + Send + 'static,
 ) -> std::io::Result<()> {
     use verge_core::ports::OverlaySurface;
-    verge_platform_windows::WindowsOverlaySurface::new().run(move || render(&next_state()))
+    verge_platform_linux_x11::X11OverlaySurface::new().run(move || render(&next_state()))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::time::SystemTime;
-    use verge_core::domain::{Account, Fidelity, Recency, ToolId, UsageWindow};
+    use verge_core::domain::{Account, ToolId};
 
     fn account() -> Account {
         Account {
-            tool: ToolId::ClaudeCode,
-            label: "Claude Code".into(),
+            tool: ToolId::Codex,
+            label: "Codex".into(),
             provenance: "test".into(),
         }
     }
@@ -83,21 +82,16 @@ mod tests {
     }
 
     #[test]
-    fn available_with_count_renders_the_count() {
+    fn unsupported_usage_shows_the_reason_never_a_fabricated_number() {
         let state = AmbientState {
             account: account(),
-            availability: Availability::Available,
-            most_constrained_window: Some(UsageWindow {
-                name: "messages on 2026-09-07".into(),
-                reading: UsageReading::Count(42),
-                resets_at: None,
-                fidelity: Fidelity::Derived,
-                recency: Recency::Live {
-                    as_of: SystemTime::now(),
-                },
-            }),
+            availability: Availability::Unsupported {
+                reason: "Codex has no local usage/quota cache".to_string(),
+            },
+            most_constrained_window: None,
         };
         let content = render(&state);
-        assert!(content.lines.iter().any(|l| l.contains("42")));
+        assert!(content.lines.iter().any(|l| l.contains("Not available")));
+        assert!(!content.lines.iter().any(|l| l.contains('%')));
     }
 }

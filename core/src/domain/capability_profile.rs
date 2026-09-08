@@ -36,9 +36,12 @@ impl CapabilityProfile {
     /// Capabilities not reported at all are `None` with an explicit
     /// "not reported" reason — never silently treated as `Full`.
     pub fn level(&self, capability: Capability) -> CapabilityLevel {
-        self.levels.get(&capability).cloned().unwrap_or(CapabilityLevel::None {
-            reason: "capability not reported by this platform build".to_string(),
-        })
+        self.levels
+            .get(&capability)
+            .cloned()
+            .unwrap_or(CapabilityLevel::None {
+                reason: "capability not reported by this platform build".to_string(),
+            })
     }
 }
 
@@ -61,6 +64,9 @@ mod tests {
     fn set_capability_is_returned() {
         let mut profile = CapabilityProfile::new();
         profile.set(Capability::AmbientOverlay, CapabilityLevel::Full);
-        assert_eq!(profile.level(Capability::AmbientOverlay), CapabilityLevel::Full);
+        assert_eq!(
+            profile.level(Capability::AmbientOverlay),
+            CapabilityLevel::Full
+        );
     }
 }

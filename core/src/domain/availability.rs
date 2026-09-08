@@ -14,10 +14,14 @@ pub enum Availability {
     /// This platform, desktop environment, or tool version cannot provide
     /// this signal at all. `Unsupported` must never be reasoned about as if
     /// it meant `broken`.
-    Unsupported { reason: String },
+    Unsupported {
+        reason: String,
+    },
     /// Network/rate-limited; retry scheduled.
     Unreachable,
     /// Unexpected. Carries an internal diagnostic never shown raw to the
     /// user.
-    Error { diagnostic: String },
+    Error {
+        diagnostic: String,
+    },
 }
