@@ -12,6 +12,7 @@ Start with the [project README](../README.md) for installation and current capab
 ## Developing Verge
 
 - [Contributing](../CONTRIBUTING.md): setup, code boundaries and native tests.
+- [v1.0.0 release plan](superpowers/plans/2026-09-10-verge-v1.0.0-release.md): development, integration and release gates.
 - [Architecture](PRODUCT_ARCHITECTURE.md): the current source layout and data flow.
 - [Design vocabulary](../DESIGN.md): typography, geometry and interaction decisions.
 - [Session intelligence](design/SESSION_INTELLIGENCE.md): source semantics and context handling.
