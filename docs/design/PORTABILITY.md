@@ -1,4 +1,4 @@
-# Native portability foundation — 2026-09-10
+# Native portability foundation â€” 2026-09-10
 
 Windows remains the complete native implementation. This change starts native Linux and macOS support; it does not claim feature or visual parity.
 

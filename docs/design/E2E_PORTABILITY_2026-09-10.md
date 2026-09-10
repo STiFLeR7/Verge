@@ -1,4 +1,4 @@
-# Verge E2E verification — 2026-09-10
+# Verge E2E verification â€” 2026-09-10
 
 ## Results
 

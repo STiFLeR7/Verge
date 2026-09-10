@@ -81,9 +81,9 @@ Read the [original design spec](/D:/codenotch/docs/specs/2026-08-28-usage-notch-
 
 Corrections implemented from that evidence:
 
-- Usage now communicates headroom, independently of the tool brand: 21% green, 52% yellow, 73% orange. The prose spec’s 80% orange threshold conflicts with its own frame; the reference `UsageBand.swift` explicitly resolves this to 70%. Verge follows that resolved interpretation.
+- Usage now communicates headroom, independently of the tool brand: 21% green, 52% yellow, 73% orange. The prose specâ€™s 80% orange threshold conflicts with its own frame; the reference `UsageBand.swift` explicitly resolves this to 70%. Verge follows that resolved interpretation.
 - Usage arcs have antialiased round caps matching the source frames.
-- Aged usage dims its reading, while independently current activity light/captions and permission copy remain visible. This preserves the architecture’s separate recency and activity facts.
+- Aged usage dims its reading, while independently current activity light/captions and permission copy remain visible. This preserves the architectureâ€™s separate recency and activity facts.
 - A dedicated native test checks the band boundaries, empty/full arcs, cap shape, and stale-usage/current-activity independence. All 42 workspace tests pass.
 
 The documents are references, not blanket scope changes: the user's newer brief retains the connected expansion, subtle activity halo, brand-preserving identity, and no added settings/integrations or fabricated limits. The architecture document describes activity/session models that the current core still does not implement.
