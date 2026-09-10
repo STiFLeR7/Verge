@@ -1,0 +1,35 @@
+name: Portable builds
+on: [push, pull_request, workflow_dispatch]
+jobs:
+  native:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - run: cargo fmt --all --check
+      - run: cargo test --workspace
+      - run: cargo check --workspace --all-targets
+      - run: node scripts/integrations/test.mjs
+      - if: runner.os == 'Windows'
+        run: node scripts/claude-signal.test.cjs
+      - if: runner.os == 'Windows'
+        run: ./scripts/build-portable.ps1
+      - if: runner.os != 'Windows'
+        run: bash scripts/build-portable.sh
+      - if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y xvfb xdotool xfonts-base
+          xvfb-run -a python3 platform/linux/x11/tests/native_smoke.py target/release/verge
+      - uses: actions/upload-artifact@v4
+        with:
+          name: verge-${{ runner.os }}-${{ runner.arch }}
+          path: |
+            dist/*.zip
+            dist/*.tar.gz
