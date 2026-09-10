@@ -56,3 +56,7 @@ Cargo workspaces/features to conditionally exclude a member entirely per
 OS — rejected as heavier than necessary: the actual problem was narrow (one
 function per crate, one `fn main` per binary), and `cfg` attributes solve it
 at exactly that granularity without restructuring the workspace.
+
+## 2026-09-10 portability update
+
+`apps/desktop` now uses target-specific native dependencies. `verge` dispatches by target OS; the old Linux binary remains an alias. Pure presentation lives in `ui/ambient/shared`. Linux predicates explicitly use `target_os = "linux"`, not `unix`. macOS uses a minimal AppKit Swift shell and the Rust `verge-state` presentation helper, consistent with ADR 0003. See `docs/design/PORTABILITY.md` for current capability gaps.

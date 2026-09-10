@@ -1,2 +1,5 @@
 /target
 *.pdb
+
+/dist
+/ui/ambient/macos/.build
