@@ -67,4 +67,14 @@ mod tests {
             Recency::Aged { as_of }
         );
     }
+
+    #[test]
+    fn clock_skew_future_as_of_is_live_not_negative_age() {
+        let now = SystemTime::UNIX_EPOCH + Duration::from_secs(1000);
+        let as_of = now + Duration::from_secs(3600);
+        assert_eq!(
+            Recency::classify(as_of, now, Duration::from_secs(60)),
+            Recency::Live { as_of }
+        );
+    }
 }

@@ -198,6 +198,12 @@ mod tests {
                 as_of: now,
                 fidelity: Fidelity::Official,
             },
+            ContextUsage::Observed {
+                fraction: 0.95,
+                capacity: None,
+                as_of: now + Duration::from_secs(10),
+                fidelity: Fidelity::Official,
+            },
         ] {
             assert_eq!(context.pressure(now), None);
         }

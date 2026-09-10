@@ -149,6 +149,46 @@ mod tests {
         b.remove(canceled);
         assert!(!b.decide(canceled, "a", PermissionDecision::Approve, now, true));
     }
+
+    #[test]
+    fn register_rejects_beyond_capacity_and_on_id_overflow() {
+        let now = Instant::now();
+        let mut b = PermissionBook::default();
+        for i in 0..8 {
+            assert!(b
+                .register(
+                    format!("session-{i}"),
+                    "Bash".into(),
+                    "echo test".into(),
+                    "test-project".into(),
+                    now,
+                )
+                .is_some());
+        }
+        assert!(b
+            .register(
+                "session-9".into(),
+                "Bash".into(),
+                "echo test".into(),
+                "test-project".into(),
+                now,
+            )
+            .is_none());
+
+        let mut overflowing = PermissionBook {
+            next: u64::MAX,
+            entries: BTreeMap::new(),
+        };
+        assert!(overflowing
+            .register(
+                "session".into(),
+                "Bash".into(),
+                "echo test".into(),
+                "test-project".into(),
+                now,
+            )
+            .is_none());
+    }
 }
 
 impl std::fmt::Debug for PermissionRequest {
