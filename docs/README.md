@@ -21,6 +21,7 @@ Start with the [project README](../README.md) for installation and current capab
 ## Verification and history
 
 - [Latest E2E report](design/E2E_PORTABILITY_2026-09-10.md).
+- [Edge-case and real-time verification](design/E2E_EDGE_CASES_2026-09-10.md).
 - [Review handoff](design/E2E_REVIEW_HANDOFF.md).
 - [Unreleased changes](../CHANGELOG.md).
 - [Development log](STATUS.md).
