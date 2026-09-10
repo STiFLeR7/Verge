@@ -1,0 +1,61 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'verge-signal-'));
+process.env.LOCALAPPDATA = temp;
+const bridge = require('./claude-signal.cjs');
+const read = name => JSON.parse(fs.readFileSync(path.join(temp, 'Verge/signals', name + '.json')));
+try {
+  bridge.intelligence({session_id:'context-test',model:{id:'test-model',display_name:'Test Model'},context_window:{used_percentage:82,context_window_size:200000},prompt:'secret',transcript_path:'private',workspace:{current_dir:'private'}});
+  const context=read('claude-context-context-test');
+  assert.deepEqual(Object.keys(context).sort(),['at','context','model','session_id']);
+  assert.equal(context.context.used_percentage,82);
+  assert.equal(context.model.name,'Test Model');
+  bridge.intelligence({session_id:'context-test',context_window:{used_percentage:null}});
+  assert.equal(read('claude-context-context-test').context,null);
+  bridge.intelligence({session_id:'context-test'});
+  assert.equal(read('claude-context-context-test').context,undefined);
+  bridge.intelligence({session_id:'../escape',context_window:{used_percentage:99}});
+  bridge.usage({ rate_limits: { five_hour: {used_percentage: 73, resets_at: 2000000000} }, prompt: 'must not persist' });
+  assert.equal(read('claude-usage').rate_limits.five_hour.used_percentage, 73);
+  assert.equal(read('claude-usage').prompt, undefined);
+  bridge.usage({ rate_limits: { five_hour: {used_percentage: null, resets_at: 2000000000} } });
+  assert.equal(read('claude-usage').rate_limits.five_hour.used_percentage, 73);
+  for (const [hook_event_name, state] of [['UserPromptSubmit','busy'],['PermissionRequest','waiting'],['Stop','completed'],['StopFailure','stopped'],['PostToolUseFailure','stopped']]) {
+    bridge.activity({session_id:'test-session',hook_event_name,tool_name:'Bash',tool_input:{command:'private'}});
+    const event=read('claude-session-test-session'); assert.equal(event.state,state); assert.equal(event.tool_input,undefined);
+  }
+  bridge.activity({session_id:'../escape',hook_event_name:'Stop'});
+  assert.equal(fs.existsSync(path.join(temp,'Verge/escape.json')),false);
+  if (process.platform === 'win32') {
+    const {execFileSync}=require('node:child_process');
+    const config=path.join(temp,'.claude'); fs.mkdirSync(config);
+    const status=path.join(config,'statusline-command.js');
+    const old="let input='';process.stdin.on('data',d=>input+=d);process.stdin.on('end',()=>{const data=JSON.parse(input);\n  const c = {};\nprocess.stdout.write('existing status');});";
+    fs.writeFileSync(status,old);
+    const settings=path.join(config,'settings.json');
+    fs.writeFileSync(settings,JSON.stringify({statusLine:{type:'command',command:'node "'+status.replaceAll('\\','/')+'"'},preserved:true,hooks:{PermissionRequest:[{hooks:[{type:'command',command:'echo user-hook'}]}]}}));
+    const env={...process.env,USERPROFILE:temp};
+    const binaries=path.join(temp,'bin with spaces'); fs.mkdirSync(binaries);
+    for(const name of ['verge.exe','verge-claude-hook.exe']) fs.writeFileSync(path.join(binaries,name),'fixture-only');
+    for(let i=0;i<2;i++) execFileSync('powershell.exe',['-NoProfile','-ExecutionPolicy','Bypass','-File',path.join(__dirname,'install-claude-signals.ps1'),'-BinaryDirectory',binaries],{env});
+    const installed=JSON.parse(fs.readFileSync(settings));
+    const gate=installed.hooks.PermissionRequest.flatMap(x=>x.hooks).filter(x=>x.command.includes('verge-claude-hook.exe'));
+    assert.equal(gate.length,1);
+    assert.equal(gate[0].command,'"'+path.join(binaries,'verge-claude-hook.exe').replaceAll('\\','/')+'"');
+    assert.equal(gate[0].timeout,130);
+    assert.equal(gate[0].async,undefined);
+    assert.ok(installed.hooks.PermissionRequest.flatMap(x=>x.hooks).some(x=>x.command==='echo user-hook'));
+    assert.equal(installed.hooks.PermissionRequest.length,3);
+    assert.equal(installed.preserved,true); assert.equal(installed.hooks.Stop.length,1);
+    assert.equal(execFileSync(process.execPath,[status],{env,input:'{}'}).toString(),'existing status');
+    assert.equal(fs.readFileSync(status+'.verge-backup','utf8'),old);
+    const before=fs.readFileSync(settings,'utf8'), beforeStatus=fs.readFileSync(status,'utf8');
+    fs.unlinkSync(path.join(binaries,'verge-claude-hook.exe'));
+    assert.throws(()=>execFileSync('powershell.exe',['-NoProfile','-ExecutionPolicy','Bypass','-File',path.join(__dirname,'install-claude-signals.ps1'),'-BinaryDirectory',binaries],{env,stdio:'pipe'}));
+    assert.equal(fs.readFileSync(settings,'utf8'),before);
+    assert.equal(fs.readFileSync(status,'utf8'),beforeStatus);
+  }
+  console.log('PASS: real field shapes, no secret/prompt persistence, invalid input, activity mapping.');
+} finally { fs.rmSync(temp, { recursive:true,force:true }); }
