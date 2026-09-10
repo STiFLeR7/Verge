@@ -13,10 +13,24 @@ name = "verge-linux-x11"
 path = "src/main_linux_x11.rs"
 
 [dependencies]
+serde_json = "1"
+verge-ui-ambient-shared = { path = "../../ui/ambient/shared" }
 verge-core = { path = "../../core" }
 verge-tool-claude = { path = "../../tools/claude" }
 verge-tool-codex = { path = "../../tools/codex" }
+
+[[bin]]
+name = "verge-claude-hook"
+path = "src/claude_hook.rs"
+
+[target.'cfg(windows)'.dependencies]
 verge-platform-windows = { path = "../../platform/windows" }
-verge-platform-linux-x11 = { path = "../../platform/linux/x11" }
 verge-ui-ambient-windows = { path = "../../ui/ambient/windows" }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+verge-platform-linux-x11 = { path = "../../platform/linux/x11" }
 verge-ui-ambient-linux-x11 = { path = "../../ui/ambient/linux-x11" }
+
+[[bin]]
+name = "verge-state"
+path = "src/state.rs"

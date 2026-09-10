@@ -162,12 +162,14 @@ version = "0.1.0"
 name = "verge-desktop"
 version = "0.1.0"
 dependencies = [
+ "serde_json",
  "verge-core",
  "verge-platform-linux-x11",
  "verge-platform-windows",
  "verge-tool-claude",
  "verge-tool-codex",
  "verge-ui-ambient-linux-x11",
+ "verge-ui-ambient-shared",
  "verge-ui-ambient-windows",
 ]
 
@@ -183,6 +185,7 @@ dependencies = [
 name = "verge-platform-windows"
 version = "0.1.0"
 dependencies = [
+ "serde_json",
  "verge-core",
  "windows",
 ]
@@ -210,6 +213,14 @@ version = "0.1.0"
 dependencies = [
  "verge-core",
  "verge-platform-linux-x11",
+ "verge-ui-ambient-shared",
+]
+
+[[package]]
+name = "verge-ui-ambient-shared"
+version = "0.1.0"
+dependencies = [
+ "verge-core",
 ]
 
 [[package]]
@@ -218,6 +229,7 @@ version = "0.1.0"
 dependencies = [
  "verge-core",
  "verge-platform-windows",
+ "verge-ui-ambient-shared",
 ]
 
 [[package]]

@@ -10,6 +10,21 @@ pub enum StateTint {
     Working,
     Waiting,
     Completed,
+    Stopped,
+}
+
+/// A reported usage reading. Activity rings are independent of this measurement.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Metric {
+    /// `Availability` isn't `Available`, or there is genuinely no window —
+    /// no ring at all.
+    None,
+    /// A real reading exists but it is a bare `Count` with no published
+    /// limit — draw the identity ring, un-filled.
+    Neutral,
+    /// A real `UsageReading::Fraction` — the ring fills to this proportion
+    /// (0.0..=1.0, already clamped by the producer).
+    Fraction(f32),
 }
 
 /// One tool's identity plus presentation-ready state, exactly as the
@@ -20,6 +35,10 @@ pub enum StateTint {
 /// interprets `Availability`, `Fidelity`, or `Recency` itself.
 #[derive(Debug, Clone, PartialEq)]
 pub struct ToolGlyph {
+    pub sessions: Vec<SessionDetail>,
+    pub session_summary: Option<String>,
+    /// Selected only by the local surface; source snapshots leave this unset.
+    pub selected_session: Option<usize>,
     /// Short human name, e.g. "Claude".
     pub label: String,
     /// A single-character identity mark standing in for the tool's real
@@ -29,16 +48,35 @@ pub struct ToolGlyph {
     /// The tool's own brand color, never remapped by Verge (design spec §13).
     pub brand_color: (u8, u8, u8),
     pub state: StateTint,
-    /// Whether to draw the static "there is a metric here" identity ring.
-    /// Never a percentage fill unless a real `Fraction` reading exists —
-    /// design spec §9's explicit rule against inventing a denominator.
-    pub has_metric: bool,
+    pub session_count: Option<u32>,
+    pub permission: Option<crate::domain::PermissionRequest>,
+    pub activity_label: Option<String>,
+    /// The usage percentage or neutral reading to display below the activity ring.
+    pub metric: Metric,
     /// True if the underlying reading is `Recency::Aged` and should render
     /// visually dimmed — a material treatment, never additional text
     /// (design spec §9's "appropriately dimmed" instruction).
     pub dimmed: bool,
     /// Plain, human, jargon-free lines shown only in the expanded view.
     pub detail_lines: Vec<String>,
+    pub usage_windows: Vec<UsageDetail>,
+    pub reminder: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct SessionDetail {
+    pub id: String,
+    pub title: String,
+    pub lines: Vec<String>,
+    pub priority: u8,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct UsageDetail {
+    pub label: String,
+    pub fraction: f32,
+    pub reset: String,
+    pub dimmed: bool,
 }
 
 /// What the ambient overlay should currently render. Deliberately tiny and

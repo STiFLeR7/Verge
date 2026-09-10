@@ -1,13 +1,7 @@
-//! Codex tool adapter.
-//!
-//! Owns interpretation of Codex's local state: which file is relevant, what
-//! it means for a real credential to be present, and — the one genuinely
-//! different finding from Claude Code — that Codex has **no local
-//! usage/quota cache to read at all** (see
-//! docs/design/codex-linux-local-state.md). This adapter contains zero OS
-//! code (no raw file-descriptor tricks, no `/proc`, no X11/Win32); the
-//! `CredentialStore` it depends on is injected by whichever platform crate
-//! composes it.
+//! Codex adapters: credential-only compatibility and local rollout metadata.
+//! `local` reads reported rate limits and recent task events without exposing conversation content.
+
+pub mod local;
 
 use verge_core::domain::{Account, Availability, UsageSnapshot};
 use verge_core::ports::{CredentialOutcome, CredentialStore, UsageSource};
@@ -49,18 +43,9 @@ impl<C: CredentialStore> UsageSource for CodexUsageSource<C> {
                         diagnostic: format!("auth.json did not parse as JSON: {e}"),
                     }),
                     Ok(_) => {
-                        // CONFIRMED by direct source inspection (see the
-                        // design doc): Codex's rate-limit/usage data comes
-                        // only from live HTTP response headers on an
-                        // authenticated API call. There is no local file or
-                        // database this adapter can read instead, so
-                        // reporting anything other than `Unsupported` here
-                        // would be inventing a number — exactly what
-                        // docs/PRODUCT_ARCHITECTURE.md §6 forbids.
+                        // Credentials alone do not contain usage; the local module reads rollout events.
                         Err(Availability::Unsupported {
-                            reason: "Codex has no local usage/quota cache; account usage requires \
-                                     a live authenticated API call, which this adapter does not \
-                                     perform"
+                            reason: "Credential-only source does not report usage; use the local rollout adapter"
                                 .to_string(),
                         })
                     }

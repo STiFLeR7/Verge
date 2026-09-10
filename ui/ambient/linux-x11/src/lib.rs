@@ -16,7 +16,7 @@
 //! done here.
 
 use verge_core::domain::{AmbientState, Availability, UsageReading};
-use verge_core::ports::{OverlayContent, StateTint, ToolGlyph};
+use verge_core::ports::{Metric, OverlayContent, StateTint, ToolGlyph};
 
 pub fn render(state: &AmbientState) -> OverlayContent {
     let header = format!("Verge · {}", state.account.label);
@@ -39,12 +39,20 @@ pub fn render(state: &AmbientState) -> OverlayContent {
 
     OverlayContent {
         glyphs: vec![ToolGlyph {
+            sessions: vec![],
+            session_summary: None,
+            selected_session: None,
             label: state.account.label.clone(),
             mark: '•',
             brand_color: (255, 255, 255),
             state: StateTint::Neutral,
-            has_metric: false,
+            metric: Metric::None,
             dimmed: false,
+            permission: None,
+            session_count: None,
+            usage_windows: vec![],
+            reminder: None,
+            activity_label: None,
             detail_lines: vec![header, body],
         }],
         overflow_count: None,
@@ -55,11 +63,11 @@ pub fn render(state: &AmbientState) -> OverlayContent {
 /// refresh cadence to get the latest `AmbientState` to render. Blocks until
 /// the surface is closed.
 ///
-/// `#[cfg(unix)]`-gated because the X11 platform implementation it calls
+/// `#[cfg(target_os = "linux")]`-gated because the X11 platform implementation it calls
 /// into is: keeping `render()` above ungated means the pure formatting
 /// logic stays unit-testable on every platform, exactly like
 /// `ui/ambient/windows` keeps `render()` free of any Win32 dependency.
-#[cfg(unix)]
+#[cfg(target_os = "linux")]
 pub fn run_ambient_shell(
     next_state: impl Fn() -> AmbientState + Send + 'static,
 ) -> std::io::Result<()> {
@@ -83,6 +91,10 @@ mod tests {
     #[test]
     fn unauthenticated_never_shows_a_number() {
         let state = AmbientState {
+            usage_windows: vec![],
+            reminder: None,
+            sessions: None,
+            activity: verge_core::domain::ActivityState::Unknown,
             account: account(),
             availability: Availability::Unauthenticated,
             most_constrained_window: None,
@@ -96,6 +108,10 @@ mod tests {
     #[test]
     fn unsupported_usage_shows_the_reason_never_a_fabricated_number() {
         let state = AmbientState {
+            usage_windows: vec![],
+            reminder: None,
+            sessions: None,
+            activity: verge_core::domain::ActivityState::Unknown,
             account: account(),
             availability: Availability::Unsupported {
                 reason: "Codex has no local usage/quota cache".to_string(),
@@ -107,4 +123,12 @@ mod tests {
         assert!(lines.iter().any(|l| l.contains("Not available")));
         assert!(!lines.iter().any(|l| l.contains('%')));
     }
+}
+
+/// Linux baseline uses the same session/attention projection as the Windows surface.
+#[cfg(target_os = "linux")]
+pub fn run_states(source: impl Fn() -> Vec<AmbientState> + Send + 'static) -> std::io::Result<()> {
+    use verge_core::ports::OverlaySurface;
+    verge_platform_linux_x11::X11OverlaySurface::new()
+        .run(move || verge_ui_ambient_shared::render_requested(&source(), true))
 }

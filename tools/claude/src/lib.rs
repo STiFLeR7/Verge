@@ -7,7 +7,16 @@
 //! docs/design/claude-code-windows-local-state.md for how the paths below
 //! were established empirically, not assumed from the macOS reference).
 
+mod activity;
+mod context;
+mod limits;
+pub use limits::{default_signal_directory, read_limits};
 mod stats_cache;
+pub use activity::ClaudeActivitySource;
+
+pub fn default_sessions_path() -> Option<PathBuf> {
+    dirs_home().map(|home| home.join(".claude").join("sessions"))
+}
 
 use std::path::PathBuf;
 use std::time::{Duration, SystemTime};
@@ -111,3 +120,6 @@ impl<C: CredentialStore> UsageSource for ClaudeCodeUsageSource<C> {
         })
     }
 }
+
+mod permission;
+pub use permission::{parse_permission, permission_output, permission_session_matches};

@@ -91,9 +91,7 @@ fn realistic_auth_json_reports_unsupported_never_a_fabricated_usage_number() {
     assert_eq!(
         source.fetch(&account()),
         Err(Availability::Unsupported {
-            reason: "Codex has no local usage/quota cache; account usage requires \
-                     a live authenticated API call, which this adapter does not \
-                     perform"
+            reason: "Credential-only source does not report usage; use the local rollout adapter"
                 .to_string()
         })
     );

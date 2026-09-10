@@ -29,20 +29,29 @@ pub struct UsageSnapshot {
     pub windows: Vec<UsageWindow>,
 }
 
-/// Three-state description of what one unit of live/recent agent work is
+/// Reported description of what one unit of live/recent agent work is
 /// doing right now. Activity is a separate concern from usage — it updates
 /// on its own cadence and must never be inferred from a usage poll.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ActivityState {
+    Unknown,
     Working,
     WaitingOnUser,
     RecentlyIdle,
+    Completed,
+    Stopped,
+    Disconnected,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ActivitySession {
+    pub intelligence: Option<super::SessionIntelligence>,
+    pub id: String,
+    pub name: String,
     pub state: ActivityState,
     /// What it's waiting for, if `state` is `WaitingOnUser`.
     pub waiting_for: Option<String>,
     pub since: SystemTime,
 }
+
+pub const COMPLETED_GRACE_SECONDS: u64 = 12;

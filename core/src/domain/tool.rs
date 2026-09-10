@@ -9,6 +9,9 @@ pub enum ToolId {
     Antigravity,
     Grok,
     OpenCode,
+    KiloCode,
+    Hermes,
+    Pi,
 }
 
 /// Static identity + capability flags for a `ToolId`. Not the same thing as

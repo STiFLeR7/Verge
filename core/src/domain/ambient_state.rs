@@ -1,19 +1,21 @@
-use super::{Account, Availability, UsageSnapshot, UsageWindow};
+use super::{Account, ActivitySession, ActivityState, Availability, UsageSnapshot, UsageWindow};
 
 /// What the ambient surface should actually show for this account, right
-/// now. A pure projection, not a stored entity — generalizes the reference
+/// now. A pure projection, not a stored entity â€” generalizes the reference
 /// product's "most-constrained window wins" rule into an explicit function
 /// instead of implicit UI logic.
 ///
-/// Activity fusion (folding in `ActivitySession`) is not wired in yet: the
-/// first vertical slice only has a `UsageSource` for Claude Code. Adding an
-/// `ActivitySource` is the next capability to compose here, not a redesign
-/// of this function's shape.
+/// Usage and verified live sessions are composed independently.
 #[derive(Debug, Clone, PartialEq)]
 pub struct AmbientState {
     pub account: Account,
     pub availability: Availability,
     pub most_constrained_window: Option<UsageWindow>,
+    pub usage_windows: Vec<UsageWindow>,
+    pub reminder: Option<String>,
+    /// None means activity could not be read; Some(empty) means no live sessions.
+    pub sessions: Option<Vec<ActivitySession>>,
+    pub activity: ActivityState,
 }
 
 /// Picks the most-constrained window, by `UsageReading`, out of a snapshot.
@@ -35,6 +37,53 @@ pub fn project_ambient_state(snapshot: &UsageSnapshot) -> AmbientState {
         account: snapshot.account.clone(),
         availability: snapshot.availability.clone(),
         most_constrained_window,
+        usage_windows: if snapshot.availability == Availability::Available {
+            snapshot.windows.clone()
+        } else {
+            vec![]
+        },
+        reminder: None,
+        sessions: None,
+        activity: ActivityState::Unknown,
+    }
+}
+
+impl AmbientState {
+    /// Attention outranks work. Usage availability never suppresses known activity.
+    pub fn with_sessions(mut self, sessions: Option<Vec<ActivitySession>>) -> Self {
+        self.activity = sessions
+            .as_ref()
+            .and_then(|items| {
+                items.iter().max_by_key(|s| match s.state {
+                    ActivityState::WaitingOnUser => 5,
+                    ActivityState::Stopped => {
+                        if s.since
+                            .elapsed()
+                            .is_ok_and(|age| age.as_secs() < super::COMPLETED_GRACE_SECONDS)
+                        {
+                            4
+                        } else {
+                            0
+                        }
+                    }
+                    ActivityState::Working => 3,
+                    ActivityState::Completed => {
+                        if s.since
+                            .elapsed()
+                            .is_ok_and(|age| age.as_secs() < super::COMPLETED_GRACE_SECONDS)
+                        {
+                            2
+                        } else {
+                            0
+                        }
+                    }
+                    ActivityState::RecentlyIdle => 1,
+                    ActivityState::Unknown | ActivityState::Disconnected => 0,
+                })
+            })
+            .map_or(ActivityState::Unknown, |s| s.state);
+        self.sessions = sessions;
+        self
     }
 }
 
@@ -70,7 +119,7 @@ mod tests {
     }
 
     /// A second tool's identity, used to prove this projection is generic
-    /// over `ToolId` rather than coincidentally correct for one — see
+    /// over `ToolId` rather than coincidentally correct for one â€” see
     /// `docs/design/SECOND_VERTICAL_SLICE.md`.
     fn codex_account() -> Account {
         Account {
@@ -104,7 +153,7 @@ mod tests {
     }
 
     /// `Unsupported` is the outcome Codex specifically needs (no local
-    /// usage cache exists — see docs/design/codex-linux-local-state.md).
+    /// usage cache exists â€” see docs/design/codex-linux-local-state.md).
     /// Proves the same "never invent" chokepoint applies regardless of
     /// which tool's `Account` is attached, and regardless of *why*
     /// availability isn't `Available`, not just for `Unauthenticated`.

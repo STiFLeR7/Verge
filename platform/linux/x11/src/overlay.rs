@@ -1,29 +1,5 @@
-//! Linux/X11 `OverlaySurface` implementation.
-//!
-//! Mechanism validated empirically by the disposable overlay-capability
-//! spike (`D:\overlay-capability-spike\linux-x11`, results summarized in
-//! `docs/design/SECOND_VERTICAL_SLICE.md` and the spike's own
-//! `SPIKE_RESULTS.md` §3) before being reimplemented here as production
-//! code: an override-redirect window on a 32-bit (ARGB) visual for real
-//! per-pixel transparency, the X11 Shape extension's input shape to make
-//! the whole surface click-through (there is no interactive region in this
-//! vertical slice — same deliberate simplification as
-//! `platform/windows/src/overlay.rs`), and `_NET_WM_STATE_ABOVE` via EWMH.
-//!
-//! `core/domain` and `core/ports` know nothing about X11 — no window IDs,
-//! atoms, or event masks appear outside this file.
-//!
-//! **A genuine finding from this slice's own bring-up, not from the
-//! spike:** `_NET_WM_STATE_ABOVE` has no effect on an override-redirect
-//! window (confirmed by the spike itself — no WM manages such a window at
-//! all), and X11's default stacking rule puts whatever is mapped *most
-//! recently* on top of older sibling windows, regardless of
-//! override-redirect status. In practice this means a window opened after
-//! the overlay (e.g. a new terminal) silently ends up drawn over it. The
-//! fix, mirroring `platform/windows`'s periodic `HWND_TOPMOST`
-//! re-assertion, is a periodic `ConfigureWindow` with `StackMode::ABOVE` on
-//! the same refresh cadence as content redraw — not a one-time hint set at
-//! creation.
+//! X11 native baseline. Polls pointer without taking keyboard focus; only the visible panel accepts clicks.
+//! Local metadata is read off-thread so input and inactivity remain responsive.
 
 use std::time::{Duration, Instant};
 
@@ -37,14 +13,13 @@ use x11rb::protocol::xproto::{
 };
 use x11rb::wrapper::ConnectionExt as _;
 
-const WINDOW_WIDTH: u16 = 320;
-const WINDOW_HEIGHT: u16 = 72;
+use super::interaction::{Interaction, FOOTER, HEIGHT as WINDOW_HEIGHT, WIDTH as WINDOW_WIDTH};
 const SCREEN_MARGIN: i16 = 24;
 const REFRESH: Duration = Duration::from_millis(3000);
 const POLL_SLEEP: Duration = Duration::from_millis(50);
 
-/// ARGB8888, alpha in the top byte — fully transparent.
-const TRANSPARENT: u32 = 0x0000_0000;
+/// ARGB8888, alpha in the top byte — opaque black.
+const BACKGROUND: u32 = 0xFF00_0000;
 /// Fully opaque light gray, matching `platform/windows`'s `TEXT_COLOR`.
 const TEXT_COLOR: u32 = 0xFFE6_E6E6;
 
@@ -110,11 +85,11 @@ fn run(
         WindowClass::INPUT_OUTPUT,
         visual_id,
         &CreateWindowAux::new()
-            .background_pixel(TRANSPARENT)
+            .background_pixel(BACKGROUND)
             .border_pixel(0)
             .colormap(colormap)
             .override_redirect(1)
-            .event_mask(EventMask::EXPOSURE),
+            .event_mask(EventMask::EXPOSURE | EventMask::BUTTON_PRESS),
     )?;
 
     // EWMH: ask to be stacked above normal windows. Set before mapping,
@@ -132,27 +107,17 @@ fn run(
         &[net_wm_state_above],
     )?;
 
+    conn.change_property8(
+        PropMode::REPLACE,
+        window,
+        x11rb::protocol::xproto::AtomEnum::WM_NAME,
+        x11rb::protocol::xproto::AtomEnum::STRING,
+        b"Verge",
+    )?;
     conn.map_window(window)?;
 
-    // Shape extension: an empty input region makes the entire surface
-    // click-through by construction, mirroring this slice's Windows
-    // implementation, which also has no interactive region yet.
-    conn.shape_rectangles(
-        shape::SO::SET,
-        shape::SK::INPUT,
-        x11rb::protocol::xproto::ClipOrdering::UNSORTED,
-        window,
-        0,
-        0,
-        &[] as &[Rectangle],
-    )?;
-
     let gc_clear = conn.generate_id()?;
-    conn.create_gc(
-        gc_clear,
-        window,
-        &CreateGCAux::new().foreground(TRANSPARENT),
-    )?;
+    conn.create_gc(gc_clear, window, &CreateGCAux::new().foreground(BACKGROUND))?;
 
     let font = conn.generate_id()?;
     conn.open_font(font, b"fixed")?;
@@ -165,32 +130,92 @@ fn run(
 
     conn.flush()?;
 
-    let mut last_refresh = Instant::now() - REFRESH;
+    let (sender, receiver) = std::sync::mpsc::sync_channel(1);
+    std::thread::spawn(move || loop {
+        if sender.send(content_source()).is_err() {
+            break;
+        }
+        std::thread::sleep(REFRESH);
+    });
+    let mut content = OverlayContent::default();
+    let mut ui = Interaction::new(Instant::now());
+    let mut pointer = None;
+    let mut dirty = true;
+    let mut last_refresh = Instant::now();
     loop {
+        if let Ok(next) = receiver.try_recv() {
+            content = next;
+            dirty = true;
+        }
+        let now = Instant::now();
+        let collapsed = ui.collapsed;
+        ui.tick(now, &content);
+        let position = conn.query_pointer(screen.root)?.reply()?;
+        let current = (position.root_x, position.root_y);
+        let top = if ui.collapsed {
+            y + WINDOW_HEIGHT as i16 - 6
+        } else {
+            y
+        };
+        let inside = position.same_screen
+            && current.0 >= x
+            && current.0 < x + WINDOW_WIDTH as i16
+            && current.1 >= top
+            && current.1 < y + WINDOW_HEIGHT as i16;
+        if pointer != Some(current) && inside {
+            ui.touch(now);
+        }
+        pointer = Some(current);
+        dirty |= collapsed != ui.collapsed;
         while let Some(event) = conn.poll_for_event()? {
             match event {
-                x11rb::protocol::Event::Expose(_) => {
-                    let content = content_source();
-                    draw(&conn, window, gc_clear, gc_text, &content)?;
+                x11rb::protocol::Event::Expose(_) => dirty = true,
+                x11rb::protocol::Event::ButtonPress(event) if event.detail == 1 => {
+                    if !ui.collapsed {
+                        ui.click(event.event_x, event.event_y, &content, now);
+                    } else {
+                        ui.touch(now);
+                    }
+                    dirty = true;
                 }
-                x11rb::protocol::Event::Error(e) => eprintln!("[overlay] X error: {e:?}"),
+                x11rb::protocol::Event::Error(e) => {
+                    return Err(format!("X11 surface: {e:?}").into())
+                }
                 _ => {}
             }
         }
-
-        if last_refresh.elapsed() >= REFRESH {
-            // Re-assert top-of-stack on every refresh tick — see the
-            // module doc comment on why a one-time EWMH hint at creation
-            // is not enough for an override-redirect window.
+        if dirty || last_refresh.elapsed() >= REFRESH {
+            let height = if ui.collapsed { 6 } else { WINDOW_HEIGHT };
+            let top = if ui.collapsed {
+                y + WINDOW_HEIGHT as i16 - 6
+            } else {
+                y
+            };
             conn.configure_window(
                 window,
-                &ConfigureWindowAux::new().stack_mode(StackMode::ABOVE),
+                &ConfigureWindowAux::new()
+                    .y(i32::from(top))
+                    .height(u32::from(height))
+                    .stack_mode(StackMode::ABOVE),
             )?;
-            let content = content_source();
-            draw(&conn, window, gc_clear, gc_text, &content)?;
-            last_refresh = Instant::now();
+            conn.shape_rectangles(
+                shape::SO::SET,
+                shape::SK::INPUT,
+                x11rb::protocol::xproto::ClipOrdering::UNSORTED,
+                window,
+                0,
+                0,
+                &[Rectangle {
+                    x: 0,
+                    y: 0,
+                    width: WINDOW_WIDTH,
+                    height,
+                }],
+            )?;
+            draw(&conn, window, gc_clear, gc_text, &content, &ui)?;
+            last_refresh = now;
+            dirty = false;
         }
-
         std::thread::sleep(POLL_SLEEP);
     }
 }
@@ -201,6 +226,7 @@ fn draw(
     gc_clear: x11rb::protocol::xproto::Gcontext,
     gc_text: x11rb::protocol::xproto::Gcontext,
     content: &OverlayContent,
+    ui: &Interaction,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     conn.poly_fill_rectangle(
         window,
@@ -213,19 +239,73 @@ fn draw(
         }],
     )?;
 
-    // Mechanical adaptation only, not a redesign: `OverlayContent` gained a
-    // structured `glyphs` shape for the Windows capsule
-    // (docs/design/VERGE_AMBIENT_IMPLEMENTATION.md); this still draws the
-    // same plain text lines it always did, just sourced from
-    // `glyphs[0].detail_lines` instead of a top-level `lines` field.
-    let lines = content
-        .glyphs
-        .first()
-        .map(|g| g.detail_lines.as_slice())
-        .unwrap_or(&[]);
-    for (i, line) in lines.iter().enumerate() {
-        let baseline_y = 16 + (i as i16 * 16);
-        conn.poly_text8(window, gc_text, 8, baseline_y, &text_item8(line))?;
+    if ui.collapsed {
+        conn.poly_fill_rectangle(
+            window,
+            gc_text,
+            &[Rectangle {
+                x: 0,
+                y: 0,
+                width: WINDOW_WIDTH,
+                height: 6,
+            }],
+        )?;
+    } else {
+        for (i, glyph) in content.glyphs.iter().enumerate() {
+            let x = (i * WINDOW_WIDTH as usize / content.glyphs.len()) as i16 + 8;
+            conn.poly_text8(window, gc_text, x, 20, &text_item8(&glyph.label))?;
+        }
+        let mut lines = vec![];
+        if let Some(g) = content
+            .glyphs
+            .iter()
+            .find(|g| Some(&g.label) == ui.tool.as_ref())
+        {
+            if let Some((index, session)) = g
+                .sessions
+                .iter()
+                .enumerate()
+                .find(|(_, s)| Some(&s.id) == ui.session.as_ref())
+            {
+                lines.push(session.title.clone());
+                lines.extend(session.lines.clone());
+                for (x, text) in [
+                    (8, "Back".into()),
+                    (116, "<".into()),
+                    (184, format!("{} / {}", index + 1, g.sessions.len())),
+                    (284, ">".into()),
+                ] {
+                    conn.poly_text8(window, gc_text, x, FOOTER + 20, &text_item8(&text))?;
+                }
+            } else {
+                lines.push(g.activity_label.clone().unwrap_or_else(|| "Unknown".into()));
+                for limit in &g.usage_windows {
+                    lines.push(limit.label.clone());
+                    lines.push(format!(
+                        "{:.0}% used  {}",
+                        limit.fraction * 100.0,
+                        limit.reset
+                    ));
+                }
+                if g.usage_windows.is_empty() {
+                    lines.extend(g.detail_lines.clone());
+                }
+                if !g.sessions.is_empty() {
+                    conn.poly_text8(
+                        window,
+                        gc_text,
+                        8,
+                        FOOTER + 20,
+                        &text_item8(&format!("{} sessions >", g.sessions.len())),
+                    )?;
+                }
+            }
+        } else {
+            lines.push("No local sessions detected".into());
+        }
+        for (i, line) in lines.iter().take(11).enumerate() {
+            conn.poly_text8(window, gc_text, 8, 48 + i as i16 * 16, &text_item8(line))?;
+        }
     }
 
     conn.flush()?;

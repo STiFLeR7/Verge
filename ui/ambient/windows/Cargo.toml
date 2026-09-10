@@ -7,3 +7,5 @@ license-file.workspace = true
 [dependencies]
 verge-core = { path = "../../../core" }
 verge-platform-windows = { path = "../../../platform/windows" }
+
+verge-ui-ambient-shared = { path = "../shared" }
