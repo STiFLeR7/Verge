@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Verge — right-edge capsule (matches the Windows implementation)</title>
+<style>
+  :root {
+    --claude: #da7756;
+    --neutral-ring: rgba(255,255,255,0.22);
+    --highlight: rgba(255,255,255,0.10);
+    --text-primary: #ebebeb;
+    --text-secondary: #969696;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    height: 100vh;
+    overflow: hidden;
+    background: linear-gradient(160deg, #cfe3ea 0%, #9fbccb 40%, #4c6f82 100%);
+    font-family: "Segoe UI", -apple-system, Inter, Roboto, sans-serif;
+  }
+
+  .desktop-note {
+    position: absolute;
+    top: 18px;
+    left: 18px;
+    font-size: 11px;
+    color: rgba(20,30,38,0.55);
+    max-width: 380px;
+    line-height: 1.5;
+  }
+
+  /* ---- the capsule, flush to the right edge, per
+     docs/design/VERGE_AMBIENT_IMPLEMENTATION.md's real geometry:
+     compact = 74px wide / 90px tall; expanded grows leftward only ---- */
+
+  .capsule {
+    position: fixed;
+    top: 40%;
+    right: 0;
+    transform: translateY(-50%);
+    height: 90px;
+    width: 74px;
+    background: linear-gradient(to right, rgba(14,14,16,0.80) 0%, rgba(14,14,16,0.93) 100%);
+    border-radius: 22px 0 0 22px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding-right: 17px;
+    cursor: pointer;
+    /* No transition here on purpose: the real implementation resizes the
+       window instantly on the hover poll tick, a documented, deliberate
+       simplification (docs/design/VERGE_AMBIENT_IMPLEMENTATION.md's
+       "Motion" section) — animating it here would misrepresent what was
+       actually shipped. */
+    overflow: hidden;
+  }
+  .capsule::after {
+    content: "";
+    position: absolute;
+    top: 0; right: 0; bottom: 0;
+    width: 1px;
+    background: var(--highlight);
+  }
+  .capsule.expanded {
+    width: 254px;
+    justify-content: flex-end;
+  }
+
+  .detail {
+    flex: 1;
+    min-width: 0;
+    padding-right: 12px;
+    display: none;
+  }
+  .capsule.expanded .detail { display: block; }
+  .detail .name {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 3px;
+  }
+  .detail .line {
+    font-size: 11px;
+    color: var(--text-secondary);
+    line-height: 1.45;
+  }
+
+  .badge-wrap {
+    position: relative;
+    width: 52px;
+    height: 52px;
+    flex: none;
+    display: grid;
+    place-items: center;
+  }
+  .ring {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    border: 2px solid var(--neutral-ring);
+  }
+  .badge {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--claude);
+    display: grid;
+    place-items: center;
+  }
+  /* claudecode-color.svg's own fill is the brand orange (#D97757) — on a
+     same-color badge it would be invisible, so it's forced to white here,
+     the same way a monochrome mark would be presented on a brand-colored
+     surface. See docs/design/logos/README.md for the asset's real source. */
+  .badge img {
+    width: 22px;
+    height: 22px;
+    filter: brightness(0) invert(1);
+  }
+
+  .idle-sliver {
+    position: fixed;
+    top: 40%;
+    right: 0;
+    transform: translateY(-50%);
+    width: 5px;
+    height: 64px;
+    background: rgba(14,14,16,0.24);
+    border-radius: 2px 0 0 2px;
+    display: none;
+  }
+
+  .stage-note {
+    position: absolute;
+    bottom: 20px;
+    left: 18px;
+    right: 18px;
+    font-size: 11px;
+    color: rgba(20,30,38,0.6);
+    text-align: left;
+  }
+
+  .controls {
+    position: absolute;
+    top: 18px;
+    right: 100px;
+    display: flex;
+    gap: 8px;
+  }
+  button {
+    font: inherit;
+    font-size: 11px;
+    padding: 6px 12px;
+    border-radius: 8px;
+    border: 1px solid rgba(20,30,38,0.25);
+    background: rgba(255,255,255,0.5);
+    cursor: pointer;
+  }
+  button.active { border-color: #da7756; color: #a04a2b; }
+</style>
+</head>
+<body>
+
+  <div class="desktop-note">
+    This reflects the actual shipped geometry/material from
+    <code>platform/windows/src/overlay.rs</code> — real per-pixel-alpha
+    capsule, flush right edge, rounded left corners only, hover to expand.
+    Not the earlier top-center/notch-merged design explorations.
+  </div>
+
+  <div class="controls" id="controls">
+    <button data-state="idle">Idle</button>
+    <button data-state="compact" class="active">Compact</button>
+    <button data-state="expanded">Expanded (hover)</button>
+  </div>
+
+  <div class="idle-sliver" id="idle"></div>
+
+  <div class="capsule" id="capsule">
+    <div class="detail">
+      <div class="name">Claude</div>
+      <div class="line">2456 messages on 2026-08-20</div>
+      <div class="line">No published limit</div>
+    </div>
+    <div class="badge-wrap">
+      <div class="ring"></div>
+      <div class="badge"><img src="logos/claudecode-color.svg" alt="Claude Code" /></div>
+    </div>
+  </div>
+
+  <div class="stage-note">
+    Real, live-verified screenshots of this exact geometry:
+    docs/design/evidence/ambient_capsule_compact.png,
+    ambient_capsule_expanded.png, ambient_idle_sliver.png,
+    ambient_topmost_over_notepad.png. This HTML file is a reference mockup
+    only — the actual surface is native Win32, not a webview.
+  </div>
+
+<script>
+  const capsule = document.getElementById('capsule');
+  const idle = document.getElementById('idle');
+  const buttons = document.querySelectorAll('#controls button');
+
+  function setState(state) {
+    buttons.forEach(b => b.classList.toggle('active', b.dataset.state === state));
+    if (state === 'idle') {
+      capsule.style.display = 'none';
+      idle.style.display = 'block';
+      return;
+    }
+    idle.style.display = 'none';
+    capsule.style.display = 'flex';
+    capsule.classList.toggle('expanded', state === 'expanded');
+  }
+
+  buttons.forEach(b => b.addEventListener('click', () => setState(b.dataset.state)));
+  capsule.addEventListener('mouseenter', () => setState('expanded'));
+  capsule.addEventListener('mouseleave', () => setState('compact'));
+</script>
+
+</body>
+</html>

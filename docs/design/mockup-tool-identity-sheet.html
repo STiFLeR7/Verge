@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Verge — tool identity reference sheet</title>
+<style>
+  :root { --ink: #1c1c1e; --dim: #6b6b70; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: #f4f4f5;
+    font-family: -apple-system, "Segoe UI", Inter, Roboto, sans-serif;
+    color: var(--ink);
+    padding: 40px 32px 60px;
+  }
+  h1 { font-size: 18px; font-weight: 600; margin: 0 0 6px; }
+  p.note { font-size: 11px; color: var(--dim); max-width: 640px; line-height: 1.6; margin: 0 0 32px; }
+  p.note code { background: rgba(0,0,0,0.06); padding: 1px 5px; border-radius: 4px; }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 18px;
+    max-width: 900px;
+  }
+  .card {
+    background: #fff;
+    border: 1px solid rgba(0,0,0,0.08);
+    border-radius: 14px;
+    padding: 18px 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+  }
+  .badge {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: #fff;
+    border: 1px solid rgba(0,0,0,0.10);
+    display: grid;
+    place-items: center;
+  }
+  .badge img { width: 26px; height: 26px; display: block; }
+  .name { font-size: 14px; font-weight: 600; text-align: center; }
+  .real { font-size: 11px; color: var(--dim); text-align: center; }
+</style>
+</head>
+<body>
+
+  <h1>Tool identity reference sheet</h1>
+  <p class="note">
+    Real, fetched brand marks (not hand-drawn stand-ins) — see
+    <code>docs/design/logos/README.md</code> for exact source and license
+    detail. Design-reference use only, per this session's scope decision;
+    not bundled into the Verge application. Placed on plain white badges
+    deliberately: most of these marks are officially monochrome, and
+    inventing a tint color per brand (as earlier disposable mockups in this
+    same session did, before real assets existed) would have been exactly
+    the kind of "recolor the brand" mistake
+    <code>docs/design/VERGE_AMBIENT_DESIGN.md</code> §13 rules out.
+  </p>
+
+  <div class="grid" id="grid"></div>
+
+<script>
+  const tools = [
+    { name: "Claude Code", file: "claudecode-color.svg", real: "Anthropic" },
+    { name: "Codex", file: "codex.svg", real: "OpenAI" },
+    { name: "Grok", file: "grok.svg", real: "xAI" },
+    { name: "Pi", file: "pi.svg", real: "Inflection AI" },
+    { name: "opencode", file: "opencode.svg", real: "sst/opencode" },
+    { name: "Hermes Agent", file: "hermesagent.svg", real: "Nous Research" },
+    { name: "Antigravity", file: "antigravity-color.svg", real: "Google" },
+    { name: "Kilo Code", file: "kilocode.svg", real: "Kilo-Org" },
+  ];
+
+  const grid = document.getElementById('grid');
+  tools.forEach(t => {
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML = `
+      <div class="badge"><img src="logos/${t.file}" alt="${t.name} logo" /></div>
+      <div class="name">${t.name}</div>
+      <div class="real">${t.real}</div>
+    `;
+    grid.appendChild(card);
+  });
+</script>
+
+</body>
+</html>

@@ -5,6 +5,14 @@ the actual Windows implementation in `platform/windows/src/overlay.rs` and
 `ui/ambient/windows/src/lib.rs`. Windows only, per this task's scope — no
 Linux/macOS work, no Tauri, no new tools.
 
+**A later visual-system pass** centralized every rendering constant into
+`platform/windows/src/tokens.rs` and added a smooth expand/collapse morph
+and a real percentage-fill usage ring — see
+`docs/design/VERGE_DESIGN_SYSTEM.md` for the full token tables and
+`docs/STATUS.md` for current status. This document is left otherwise
+unmodified below as the original mapping record; only the "Motion" and
+usage-ring sections were updated in place to reflect what changed.
+
 ## What was implemented
 
 - A real, right-edge-flush, vertical capsule, rendered with genuine
@@ -83,11 +91,17 @@ for a screenshot (see `docs/design/evidence/ambient_capsule_expanded.png`).
 - **Session count** (design §11) — no `ActivitySession` data exists, so no
   session count is rendered anywhere, compact or expanded. Nothing in the
   code fabricates one.
-- **Percentage-fill usage ring** — the drawing code only ever receives
-  `has_metric = false` today (Claude Code's real signal has no fraction to
-  show); a future tool or a future Claude official-endpoint `UsageSource`
-  that does return a `Fraction` would light up the existing fill-arc path
-  without any rendering code changing.
+- **Percentage-fill usage ring** — `core::ports::Metric` (`None` /
+  `Neutral` / `Fraction(f32)`, replacing the original plain `has_metric:
+  bool`) and a real angle-limited arc renderer (`paint_ring_arc`) both now
+  exist and are unit-tested, but `render_one` only ever produces
+  `Metric::Neutral` for real Claude Code data today (a bare `Count`, no
+  fraction to show). A future tool or a future Claude official-endpoint
+  `UsageSource` that does return a `Fraction` lights up the existing
+  fill-arc path without any rendering code changing. Visually verifiable
+  today only via the synthetic `platform/windows/examples/visual_states.rs`
+  fixture (see `docs/design/VERGE_DESIGN_SYSTEM.md` §17–18) — never in the
+  real running application.
 - **Multiple simultaneous tools / `+N` overflow** — `render()` takes a
   slice and caps it correctly (unit-tested with 6 synthetic states in
   `overflow_caps_the_visible_glyph_count`), but `apps/desktop/src/main.rs`
@@ -141,15 +155,21 @@ real marks.
 
 ## Motion
 
-Implemented: the compact ↔ expanded transition (an immediate resize +
-redraw on the hover poll's 50ms cadence — no eased/animated interpolation
-between the two sizes yet, so the transition is a discrete jump, not the
-smooth morph design §16 describes). This is a real, honest simplification:
-animating a live `UpdateLayeredWindow`-based resize smoothly would need an
-interpolation loop driving intermediate `present()` calls, which was not
-built this pass. Everything else in §16 (crossfading tints, a one-time
-permission attention cue, breathing on the working state) has nothing to
-animate yet, since no `ActivityState` signal exists (see "Activity Gap").
+**Updated in the visual-system pass** (see `docs/design/VERGE_DESIGN_SYSTEM.md`
+§19–21): the compact ↔ expanded transition is now a smooth, eased morph —
+a dedicated `TIMER_ANIM` (16ms cadence) interpolates width and text-column
+opacity together using an ease-out cubic curve
+(`tokens::MotionToken::Standard`, 180ms), starting from wherever the
+capsule visually is if a direction reversal interrupts it mid-flight, and
+killing itself once settled. Windows' "Ease of Access > Show animations"
+setting is read once at startup (`SPI_GETCLIENTAREAANIMATION`); when off,
+every transition resolves to its target instantly. This replaces the
+original discrete-jump implementation this section used to document as a
+known gap. Everything else in design §16 (crossfading state tints, a
+one-time permission attention cue, breathing on the working state) still
+has nothing to animate, since no `ActivityState` signal exists (see
+"Activity Gap") — five of the six `MotionToken` durations are named for
+that future work but not yet wired to any transition.
 
 ## Known limitations (explicit, not silently assumed away)
 
