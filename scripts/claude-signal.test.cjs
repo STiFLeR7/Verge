@@ -43,7 +43,8 @@ try {
     const installed=JSON.parse(fs.readFileSync(settings));
     const gate=installed.hooks.PermissionRequest.flatMap(x=>x.hooks).filter(x=>x.command.includes('verge-claude-hook.exe'));
     assert.equal(gate.length,1);
-    assert.equal(gate[0].command,'"'+path.join(binaries,'verge-claude-hook.exe').replaceAll('\\','/')+'"');
+    const installedHelper=path.join(fs.realpathSync.native(binaries),'verge-claude-hook.exe').replaceAll('\\','/');
+    assert.equal(gate[0].command,'"'+installedHelper+'"');
     assert.equal(gate[0].timeout,130);
     assert.equal(gate[0].async,undefined);
     assert.ok(installed.hooks.PermissionRequest.flatMap(x=>x.hooks).some(x=>x.command==='echo user-hook'));
