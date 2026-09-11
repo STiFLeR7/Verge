@@ -21,11 +21,11 @@ Back/previous/next reuse the same lobe; permissions always override browsing.
 Context never replaces the rail's account percentage or activity color.
 See [the session specification](docs/design/SESSION_INTELLIGENCE.md).
 
-Current font decision: the user selected **Inter**, superseding the earlier
-Segoe UI references below. Inter Regular and SemiBold are embedded as private
-Windows font resources. Sizes and layout remain unchanged. Windows font
-selection tests verify Inter in both weights; Segoe UI is a failure fallback.
-The SIL OFL license is included with the font assets.
+Current font decision: the user selected **Inter**. Inter Regular and SemiBold
+are embedded as private Windows font resources. Sizes and layout remain
+unchanged. Windows font-selection tests verify Inter in both weights; the
+system UI font is only a failure fallback. The SIL OFL license is included
+with the font assets.
 
 Updated 2026-09-08 against the user's target Image 1 and subsequent full-frame correct-size reference. Image 2 is the superseded implementation. Historical frame-scale measurements in earlier reports are not current specifications.
 
@@ -51,7 +51,7 @@ Explicit --open reveals providers with reported usage or recent sessions for com
 | Sessions / status; resets / overflow | 15; 14 | Regular; rail counts semibold |
 | Title rhythm / body line | 44 / 24 | — |
 
-Use installed Segoe UI, grayscale GDI antialiasing, and measured, centered numerals. Dimensions are logical units converted at window DPI. Labels use end ellipsis where necessary; percentages get a full 34-DIP line box. Explicit tabular shaping is not implemented.
+Use the privately loaded Inter Regular and SemiBold resources with grayscale GDI antialiasing and measured, centered numerals. Dimensions are logical units converted at window DPI. Labels use end ellipsis where necessary; percentages get a full 34-DIP line box. Explicit tabular shaping is not implemented.
 
 | Element | DIP |
 |---|---:|
@@ -85,7 +85,7 @@ Usage remains independent of activity: green below 50%, yellow from 50% to below
 
 The header gives the tool presence and shows a verified session count, including one session. Claude shows both 5-hour and weekly limits; missing windows say Not reported. Other providers show their most relevant reported quota. Codex windows retain explicit Codex labels within the ChatGPT identity. Reported state shares the percentage row; project/session metadata no longer competes with usage. Without quota windows, useful activity details remain available.
 
-A real pending permission shows Claude, yellow attention, elapsed waiting time, concise action, working directory, action summary, Deny, and Approve or Approve…. The permission view replaces that agent’s usage view at the same top edge and rail anchor, growing downward for its summary and compact dark-tinted Deny / Approve controls with red / green labels. A new request selects its own agent. Permission labels use Segoe UI 14-DIP regular, matching tooltip secondary text. Buttons are 36 DIP high with 8-DIP corners; action text is 17-DIP regular. Known JSON fields are summarized for display only. The original request remains available in the existing native full-action review. Summarized, clipped, or ambiguous content always requires that review before approval.
+A real pending permission shows Claude, yellow attention, elapsed waiting time, concise action, working directory, action summary, Deny, and Approve or Approve…. The permission view replaces that agent’s usage view at the same top edge and rail anchor, growing downward for its summary and compact dark-tinted Deny / Approve controls with red / green labels. A new request selects its own agent. Permission labels use Inter Regular at 14 DIP, matching tooltip secondary text. Buttons are 36 DIP high with 8-DIP corners; action text is 17-DIP regular. Known JSON fields are summarized for display only. The original request remains available in the existing native full-action review. Summarized, clipped, or ambiguous content always requires that review before approval.
 
 The real permission service remains authoritative. Request/session matching, pointer down/up identity matching, settled-geometry gating, the 650-ms arming delay, expiry, and explicit approval are retained. Dismissal never approves. Tab/Enter/Space/Escape and visible focus remain supported after the sheet receives keyboard focus.
 
@@ -121,10 +121,14 @@ The existing background worker discovers installed tools every 30 seconds. See [
 
 ## Inactivity and secondary readings
 
-After 30 seconds without pointer interaction on Verge or permission keyboard/button input, the surface collapses to its theme-aware idle bar even while an agent works. Hovering the bar reveals it. Pending permission requests or reported waiting-for-user states override the timeout. Background usage refreshes do not reset it. Weekly tooltip labels and readings use the existing 14-DIP Segoe UI size; the main notch reading remains unchanged. Every positive reported session count has a dark capsule and neutral outline, capped visually at 99+.
+After 30 seconds without pointer interaction on Verge or permission keyboard/button input, the surface collapses to its theme-aware idle bar even while an agent works. Hovering the bar reveals it. Pending permission requests or reported waiting-for-user states override the timeout. Background usage refreshes do not reset it. Weekly tooltip labels and readings use the existing 14-DIP Inter size; the main notch reading remains unchanged. Every positive reported session count has a dark capsule and neutral outline, capped visually at 99+.
 
-## Verified ChatGPT typography and distribution
+## Verified typography and distribution
 
-On 2026-09-08, the user’s open ChatGPT page reported a system font stack: -apple-system-body, ui-sans-serif, -apple-system, system-ui, Segoe UI, Helvetica, emoji fallbacks, Arial, sans-serif. Verge retains its existing Segoe UI family for Windows. This verifies the page’s declared stack, not a universal ChatGPT font across platforms. Native GDI grayscale rasterization differs from browser text rendering, so identical family names do not guarantee pixel-identical output.
-
-Verge references the user’s installed Windows font and does not bundle font binaries. Microsoft permits Windows applications to use installed system fonts; redistribution of those font files requires separate rights. See https://learn.microsoft.com/en-us/typography/fonts/font-faq . OpenAI Sans is a separate brand typeface and is not substituted based on branding alone.
+The user selected Inter from Google Fonts after reviewing the target image.
+Windows embeds `Inter-Regular.ttf` and `Inter-SemiBold.ttf` and registers them
+privately for the Verge process before creating GDI fonts. macOS packages the
+same files and registers them through CoreText. Native rasterization differs
+by platform, so the same family and measurements do not imply pixel-identical
+antialiasing. Inter remains licensed under the SIL Open Font License included
+with the assets; OpenAI Sans is not bundled or substituted.

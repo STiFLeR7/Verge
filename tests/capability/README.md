@@ -1,26 +1,45 @@
 # Capability tests
 
-Real OS/compositor integration — window creation, transparency, click-through,
-always-on-top — cannot be meaningfully unit-tested (see
-`docs/PRODUCT_ARCHITECTURE.md` §19). This category is manual/integration,
-derived directly from the disposable overlay-capability spike's methodology
-(`D:\overlay-capability-spike\SPIKE_RESULTS.md`), not an automated suite.
+Native behavior is covered by platform contracts rather than unit tests. The
+matrix below records current evidence against the eight checks from the
+original overlay-capability spike. `PASS` means an automated repository
+contract exercises the behavior; `MANUAL` means source or historical evidence
+exists but the behavior is not yet protected by an automated contract;
+`UNSUPPORTED` means the current platform tier does not provide it.
 
-## Status
+| Capability | Windows | Linux X11/XWayland | macOS AppKit |
+|---|---|---|---|
+| Borderless native surface | MANUAL — layered tool-window style passes; popup/frame assertion pending | MANUAL — override-redirect X11 window; contract assertion pending | MANUAL — Swift build passes; panel contract pending |
+| Always on top over normal windows | PASS — topmost style and focus retention | MANUAL — `_NET_WM_STATE_ABOVE`; behavioral assertion pending | MANUAL — status-bar panel level; launch assertion pending |
+| Always on top with fullscreen content | MANUAL | MANUAL | MANUAL |
+| Click-through outside visible material | PASS — dynamic `WS_EX_TRANSPARENT` assertion | MANUAL — X11 input-shape coverage pending | MANUAL — native hit-region coverage pending |
+| Interactive visible region | PASS — physical hover and native session/permission contracts | PASS — native mouse navigation under Xvfb | MANUAL — build-host snapshot only |
+| Multi-monitor placement | MANUAL | MANUAL | MANUAL |
+| Display/DPI/work-area changes | MANUAL — single-window DPI is covered | MANUAL | MANUAL |
+| Session/window lifecycle | PASS — fixture creation, interaction and cleanup | PASS — process start, interaction and termination under Xvfb | MANUAL — build/package lifecycle only |
 
-No automated harness exists yet. The only capability verification performed
-so far is the manual bring-up run recorded in `docs/STATUS.md` and
-`docs/design/evidence/vertical_slice_overlay_crop.png` — a real, live run of
-`verge-desktop` against this machine's actual Claude Code installation,
-screenshotted as a tight crop around the overlay only (see that file's
-directory for the same privacy discipline established by the spike: no
-full-desktop captures).
+## Commands
 
-## What a future automated pass here should do
+Windows:
 
-Re-run the eight capability tests from `SPIKE_RESULTS.md` §9 (borderless,
-always-on-top-normal, always-on-top-fullscreen, click-through, interactive
-region, multi-monitor, display changes, session lifecycle) against each
-`platform/*` implementation as it's built, kept alive as a living regression
-suite rather than a one-time spike, exactly as
-`docs/PRODUCT_ARCHITECTURE.md` §19 specifies.
+```powershell
+pwsh -NoProfile -File platform/windows/tests/window_contract.ps1
+pwsh -NoProfile -File platform/windows/tests/session_ui_contract.ps1 -Brand Claude
+pwsh -NoProfile -File platform/windows/tests/session_ui_contract.ps1 -Brand ChatGPT
+pwsh -NoProfile -File platform/windows/tests/permission_ui_contract.ps1
+```
+
+Linux after building the release executable:
+
+```sh
+xvfb-run -a python3 platform/linux/x11/tests/native_smoke.py dist/linux/verge
+```
+
+macOS currently runs the build-host bridge check inside
+`scripts/build-portable.sh`. It compiles and executes the Swift binary without
+opening the panel. Phase 3 of the
+[v1 release plan](../../docs/superpowers/plans/2026-09-10-verge-v1.0.0-release.md)
+adds the missing native panel contract and completes this matrix.
+
+Current evidence and its limits are recorded in
+[`docs/design/E2E_PORTABILITY_2026-09-10.md`](../../docs/design/E2E_PORTABILITY_2026-09-10.md).

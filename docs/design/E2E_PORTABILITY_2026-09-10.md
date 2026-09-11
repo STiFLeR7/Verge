@@ -17,6 +17,7 @@
 | Linux native session navigation | PASS | Packaged release executable under authenticated Xvfb. Real mouse clicks plus XGetImage pixel comparisons verify details, next, count no-op, previous, wrap, and Back. |
 | Linux working inactivity | PASS | Two temporary working Codex rollout fixtures; actual timer collapses to 6-pixel height, hover reveals, focus retained. |
 | macOS Rust cross-check | PASS | `cargo check --workspace --all-targets --target aarch64-apple-darwin`; this does not compile Swift/AppKit. |
+| macOS build-host contract | PASS | GitHub Actions run `34474551752`: Swift release build, `verge-state` piped into `verge-macos --check-snapshot`, ad-hoc signing and ZIP packaging. The panel was not launched. |
 
 ## Reproductions and changes
 
@@ -36,4 +37,4 @@ Windows run logs: `target/e2e-2026-09-10/`. Refreshed session screenshots: [Chat
 
 The Windows portable app was restored after testing. Its configured Claude gate points to `D:/Verge/dist/windows/verge-claude-hook.exe` with timeout 130 seconds. Configuration inspection and isolated transport tests do not prove a running Claude host has reloaded that hook. No real Claude tool approval or denial was submitted.
 
-macOS Swift compilation and native UI execution remain unverified. Native Wayland, Linux final typography/theme/monitor behavior, screen-reader accessibility, multi-monitor scenarios, provider-host reloads and long-duration soak testing are outside this result. The Linux surface remains a functional X11 baseline, not visual parity with Windows. This report is not an all-platform release certification.
+macOS Swift compilation and build-host bridge execution are verified in GitHub-hosted macOS CI; native panel launch and interaction remain unverified. Native Wayland, Linux final typography/theme/monitor behavior, screen-reader accessibility, multi-monitor scenarios, provider-host reloads and long-duration soak testing are outside this result. The Linux surface remains a functional X11 baseline with a different support tier from Windows. This report is not an all-platform release certification.

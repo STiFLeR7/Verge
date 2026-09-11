@@ -19,8 +19,8 @@ state, not a claim of production readiness.
 
 ### Known limits
 
-- macOS Swift compilation and native execution remain unverified.
-- Linux visual/accessibility parity and native Wayland are unfinished.
+- macOS Swift compilation and build-host bridge execution pass in native CI; panel launch and interaction remain unverified.
+- Linux final visual/accessibility work and native Wayland are unfinished.
 - Direct approval is available only for Claude on Windows; its installer requires a supported existing status-line setup.
 - Public licensing, signed distribution and automatic updates have not been established.
 

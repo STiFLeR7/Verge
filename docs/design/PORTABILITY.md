@@ -1,6 +1,6 @@
 # Native portability foundation — 2026-09-10
 
-Windows remains the complete native implementation. This change starts native Linux and macOS support; it does not claim feature or visual parity.
+Windows remains the complete native implementation. This change starts native Linux and macOS support; it does not claim equal feature or visual completeness.
 
 | Capability | Windows | Linux | macOS |
 |---|---|---|---|
@@ -23,7 +23,7 @@ The AppKit shell runs the sibling `verge-state` helper every three seconds. The 
 
 `D:/codenotch` was inspected for its native nonactivating NSPanel approach (status-bar level, all Spaces, visible-frame positioning). The Swift shell is a separate minimal implementation; Codenotch provider, updater, and credential code was not copied.
 
-Local Windows workspace tests and Rust all-target checks for x86_64 Linux and Apple Silicon macOS pass. These cross-check Rust only: they do not compile AppKit. Native Linux workspace tests also pass in Ubuntu 24.04 under WSL; the real X11 surface passed collapse, hover reveal, and focus-retention checks under Xvfb. `.github/workflows/portable.yml` adds native builds/tests on all three hosts, including Swift compilation and package creation. Those remote jobs have not been executed in this task. Full Linux visual/accessibility review and native macOS tests remain required before either is declared supported.
+Local Windows workspace tests and Rust all-target checks for x86_64 Linux and Apple Silicon macOS pass. Native Linux workspace tests also pass in Ubuntu 24.04 under WSL; the real X11 surface passed collapse, hover reveal, and focus-retention checks under Xvfb. GitHub Actions run `34474551752` passed on Windows, Ubuntu, and macOS: the macOS job compiled Swift, decoded a live `verge-state` snapshot through the AppKit executable, ad-hoc signed the app, and created its ZIP. That build-host contract does not launch or interact with the panel. Full Linux visual/accessibility review and native macOS UI tests remain required before either reaches its v1 support tier.
 
 Next: validate the native builds on their hosts, then bring Linux rendering/navigation and macOS visuals to the established design; port provider discovery and verified process observation before adding any Unix approval controls.
 
@@ -33,4 +33,4 @@ Provider selection and session IDs survive source reordering; Back returns to ov
 
 Run `xvfb-run -a python3 platform/linux/x11/tests/native_smoke.py target/release/verge` after building on Linux. The smoke test creates isolated temporary Codex session metadata and never reads real accounts. On WSL, where the filesystem X11 socket may be unavailable, use `VERGE_TEST_TCP=1 xvfb-run -a -l --server-args="-screen 0 1280x1024x24 -listen tcp" python3 platform/linux/x11/tests/native_smoke.py target/release/verge`. This uses Xvfb's temporary authentication, not an unauthenticated user display.
 
-Remaining: Linux Inter/vector rendering, theme-aware idle color, monitor/work-area tracking and keyboard/accessibility navigation; macOS compilation/runtime on a Mac; Unix discovery and verified approval infrastructure. Linux currently uses a white idle bar and legacy core-font text.
+Remaining: Linux Inter/vector rendering, theme-aware idle color, monitor/work-area tracking and keyboard/accessibility navigation; macOS native panel interaction and display-change verification; Unix discovery infrastructure. Linux currently uses a white idle bar and legacy core-font text. Direct approval remains intentionally limited to Claude on Windows for v1.0.0.

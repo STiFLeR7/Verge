@@ -8,6 +8,7 @@ Start with the [project README](../README.md) for installation and current capab
 - [Claude approval setup and recovery](design/CLAUDE_APPROVAL_SETUP.md).
 - [Security and privacy](../SECURITY.md).
 - [Platform support](design/PORTABILITY.md): implemented capabilities and remaining work.
+- [v1.0.0 support contract](releases/V1_SUPPORT_CONTRACT.md): exact stable-release tiers and gates.
 
 ## Developing Verge
 

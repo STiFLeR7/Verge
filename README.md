@@ -14,11 +14,14 @@ Verge is in development. The native shells have different levels of completeness
 
 | Platform | Status |
 |---|---|
-| **Windows** | Most complete implementation: native Win32 surface, Inter, agent discovery, session details, inactivity collapse and Claude approval controls. Native E2E checks pass. |
-| **Linux** | Working X11/XWayland baseline: local Codex data, provider/session navigation and inactivity collapse. Tested on Ubuntu 24.04 under WSL/Xvfb. Final typography, theme, accessibility and monitor behavior remain unfinished. |
-| **macOS** | AppKit shell and packaging implemented, targeting macOS 13+. Rust cross-checks pass; Swift compilation and native execution still need verification on a Mac. |
+| **Windows** | Pre-release reference implementation: native Win32 surface, bundled Inter, agent discovery, session details, inactivity collapse and optional Claude approval controls. Native E2E checks pass. |
+| **Linux** | Pre-release X11/XWayland baseline: local Codex data, provider/session navigation and inactivity collapse. Native CI passes on Ubuntu 24.04; final typography, theme, accessibility and monitor behavior remain unfinished. |
+| **macOS** | Experimental AppKit shell targeting macOS 13+. GitHub-hosted macOS CI compiles Swift, validates the Rust presentation bridge, ad-hoc signs the app and creates its ZIP. Interactive native UI behavior remains unverified. |
 
 Native Wayland and Linux/macOS direct approval controls are not implemented. See the [platform matrix](docs/design/PORTABILITY.md) and [latest E2E report](docs/design/E2E_PORTABILITY_2026-09-10.md).
+
+The exact platform and distribution claims required for the first stable
+release are defined by the [v1.0.0 support contract](docs/releases/V1_SUPPORT_CONTRACT.md).
 
 ## What it shows
 
@@ -80,7 +83,7 @@ bash scripts/build-portable.sh
 open dist/Verge.app
 ```
 
-The script bundles the Rust reader and Inter with the AppKit shell, checks the presentation bridge, and ad-hoc signs the app. Developer ID signing, notarization and automatic updates are not included. This path remains unverified on a native Mac.
+The script bundles the Rust reader and Inter with the AppKit shell, checks the presentation bridge, and ad-hoc signs the app. Developer ID signing, notarization and automatic updates are not included. Compilation and build-host bridge execution pass in macOS CI; launching and interacting with the panel still require native verification.
 
 ### Optional Claude approval setup
 
