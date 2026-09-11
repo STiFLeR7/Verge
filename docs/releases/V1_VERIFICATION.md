@@ -5,7 +5,7 @@ This ledger records release evidence at the exact candidate revision. `OPEN` is 
 | Gate | Result | Current evidence or required action |
 |---|---|---|
 | Scope and platform tiers | PASS | `V1_SUPPORT_CONTRACT.md`, README, and portability matrix agree. |
-| Distribution license | OPEN | Owner must select Apache-2.0 or approved proprietary terms. |
+| Distribution license | PASS | The owner selected Apache-2.0; Cargo metadata, contribution terms, and packaged notices use the same terms. |
 | Windows automated native contract | PASS | Portable CI run `34565124903` at `5e3a925`; later candidate must repeat it. |
 | Windows physical multi-monitor pass | OPEN | Requires 125% primary plus 100%/150% secondary evidence. |
 | Linux X11/XWayland native contract | PASS | Nested Xephyr/Xvfb verifies navigation, inactivity, focus, EWMH, work area, input shape, and RandR. |

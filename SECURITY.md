@@ -26,4 +26,4 @@ Use the [setup and recovery guide](docs/design/CLAUDE_APPROVAL_SETUP.md) to inst
 
 ## Verification scope
 
-The [E2E report](docs/design/E2E_PORTABILITY_2026-09-10.md) records native fixture and transport checks. The [v1 verification ledger](docs/releases/V1_VERIFICATION.md) keeps hardware, live-host, soak, signing, and licensing gates open until exact-revision evidence exists. Neither document is a formal security audit.
+The [E2E report](docs/design/E2E_PORTABILITY_2026-09-10.md) records native fixture and transport checks. The [v1 verification ledger](docs/releases/V1_VERIFICATION.md) keeps hardware, live-host, soak, and signing gates open until exact-revision evidence exists. Neither document is a formal security audit.

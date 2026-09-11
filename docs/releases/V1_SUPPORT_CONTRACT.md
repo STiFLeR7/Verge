@@ -47,8 +47,7 @@ There is no background updater in v1.0.0.
 The tag is blocked until all of the following are recorded in
 `docs/releases/V1_VERIFICATION.md` for the exact release revision:
 
-- the repository owner has selected public licensing or proprietary
-  distribution terms;
+- the repository and release artifacts use Apache-2.0 distribution terms;
 - native Windows, Linux, and macOS capability contracts pass;
 - multi-monitor/display-change behavior is verified for each supported tier;
 - a live Claude host reload, approval, denial, offline failure, and surgical

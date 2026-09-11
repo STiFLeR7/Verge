@@ -1,6 +1,6 @@
 # Contributing to Verge
 
-Verge is in development. Start with the [README](README.md) and [platform matrix](docs/design/PORTABILITY.md). Repository access does not override the current [license](LICENSE); external contribution terms have not been established.
+Verge is in development. Start with the [README](README.md) and [platform matrix](docs/design/PORTABILITY.md). By submitting a contribution, you agree to license it under [Apache-2.0](LICENSE) on the same terms as the project and confirm that you have the right to submit it.
 
 ## Set up
 

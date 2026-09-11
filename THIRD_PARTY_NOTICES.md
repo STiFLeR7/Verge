@@ -1,5 +1,8 @@
 # Third-party notices
 
+Verge itself is licensed under Apache-2.0; see `LICENSE`. The notices below
+cover third-party components distributed with Verge.
+
 Inter is copyright The Inter Project Authors and licensed under SIL OFL 1.1.
 The complete license is in `platform/windows/assets/fonts/OFL.txt`.
 Regular (400) and SemiBold (600), optical size 14, are static instances made

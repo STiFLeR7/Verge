@@ -128,4 +128,4 @@ Codenotch was a local design and native-platform reference. Verge has its own Ru
 
 ## License
 
-The repository currently reserves all rights; no public license has been granted. See [LICENSE](LICENSE). Third-party components retain their own terms, including Inter under SIL OFL; see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Build instructions and this guide do not change those terms.
+Verge is licensed under [Apache-2.0](LICENSE). Third-party components retain their own terms, including Inter under SIL OFL; see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
