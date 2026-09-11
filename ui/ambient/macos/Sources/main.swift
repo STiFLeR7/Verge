@@ -20,6 +20,11 @@ final class Panel: NSPanel {
     override var canBecomeKey: Bool { false }
     override var canBecomeMain: Bool { false }
 }
+
+func panelFrame(in visibleFrame: NSRect, height: CGFloat) -> NSRect {
+    NSRect(x: visibleFrame.maxX - 340, y: visibleFrame.midY - height / 2, width: 340, height: height)
+}
+
 final class HoverView: NSView {
     var entered: (() -> Void)?
     override func updateTrackingAreas() {
@@ -76,11 +81,22 @@ final class App: NSObject, NSApplicationDelegate {
         let menu = NSMenu()
         menu.addItem(withTitle: "Quit Verge", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         status?.menu = menu
+        NotificationCenter.default.addObserver(self, selector: #selector(screenParametersChanged), name: NSApplication.didChangeScreenParametersNotification, object: nil)
         render()
         panel.orderFrontRegardless()
         timer = Timer.scheduledTimer(withTimeInterval: 3, repeats: true) { [weak self] _ in self?.refresh() }
         refresh()
     }
+    func applicationWillTerminate(_ notification: Notification) { stop() }
+    deinit { NotificationCenter.default.removeObserver(self) }
+    func stop() {
+        timer?.invalidate(); timer = nil
+        NotificationCenter.default.removeObserver(self)
+        panel.orderOut(nil)
+        if let status { NSStatusBar.system.removeStatusItem(status) }
+        status = nil
+    }
+    @objc func screenParametersChanged() { render() }
     func touch() { lastInteraction = Date(); collapsed = false }
     func text(_ value: String, size: CGFloat = 13) {
         let label = NSTextField(wrappingLabelWithString: value)
@@ -99,7 +115,7 @@ final class App: NSObject, NSApplicationDelegate {
         guard let screen = panel.screen ?? NSScreen.main else { return }
         let frame = screen.visibleFrame
         let height: CGFloat = collapsed ? 6 : 320
-        panel.setFrame(NSRect(x: frame.maxX - 340, y: frame.midY - height / 2, width: 340, height: height), display: true)
+        panel.setFrame(panelFrame(in: frame, height: height), display: true)
         stack.isHidden = collapsed
         view.layer?.backgroundColor = (collapsed ? NSColor.labelColor : NSColor.black).cgColor
         guard !collapsed else { return }
@@ -145,9 +161,12 @@ final class App: NSObject, NSApplicationDelegate {
         session = tools[selected].sessions[(index + delta + count) % count].id
         touch(); render()
     }
-    func refresh() {
-        collapsed = !tools.contains(where: { $0.state == "Waiting" }) && Date().timeIntervalSince(lastInteraction) >= 30
+    func updateInactivity(now: Date = Date()) {
+        collapsed = !tools.contains(where: { $0.state == "Waiting" }) && now.timeIntervalSince(lastInteraction) >= 30
         render()
+    }
+    func refresh() {
+        updateInactivity()
         guard !busy else { return }; busy = true
         DispatchQueue.global(qos: .utility).async {
             let process = Process()
@@ -185,6 +204,25 @@ if CommandLine.arguments.contains("--check-snapshot") {
         print("Presentation bridge decoded")
         exit(0)
     } catch { fputs("Invalid presentation snapshot: \(error)\n", stderr); exit(1) }
+}
+if CommandLine.arguments.contains("--check-ui-contract") {
+    let application = NSApplication.shared
+    application.setActivationPolicy(.accessory)
+    let delegate = App()
+    delegate.applicationDidFinishLaunching(Notification(name: NSApplication.didFinishLaunchingNotification))
+    let panel = delegate.panel
+    let frame = (panel.screen ?? NSScreen.main)?.visibleFrame
+    let valid = panel.styleMask.contains(.borderless)
+        && panel.styleMask.contains(.nonactivatingPanel)
+        && panel.level == .statusBar
+        && panel.collectionBehavior.contains(.canJoinAllSpaces)
+        && panel.collectionBehavior.contains(.fullScreenAuxiliary)
+        && !panel.isOpaque && !panel.hasShadow && !panel.canBecomeKey && !panel.canBecomeMain
+        && frame.map { abs(panel.frame.maxX - $0.maxX) < 0.5 && abs(panel.frame.midY - $0.midY) < 0.5 } == true
+    delegate.stop()
+    guard valid else { fputs("Native UI contract failed\n", stderr); exit(1) }
+    print("Native UI contract passed")
+    exit(0)
 }
 let app = NSApplication.shared
 app.setActivationPolicy(.accessory)

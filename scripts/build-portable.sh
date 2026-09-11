@@ -17,6 +17,7 @@ case "$(uname -s)" in
     mkdir -p "$app/MacOS" "$app/Resources"
     swiftbin="$(swift build -c release --package-path ui/ambient/macos --show-bin-path)"
     "$targetdir/release/verge-state" | "$swiftbin/verge-macos" --check-snapshot
+    "$swiftbin/verge-macos" --check-ui-contract
     cp "$swiftbin/verge-macos" "$targetdir/release/verge-state" "$app/MacOS/"
     cp platform/windows/assets/fonts/Inter-*.ttf platform/windows/assets/fonts/OFL.txt THIRD_PARTY_NOTICES.md LICENSE "$app/Resources/"
     cat > "$app/Info.plist" <<'PLIST'
