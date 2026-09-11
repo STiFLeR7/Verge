@@ -6,7 +6,7 @@ On Windows, run `verge.exe --open` to request the expanded view. After 30 second
 
 On Linux, confirm `DISPLAY` is set and an X11/XWayland server is reachable. Native Wayland is not implemented. The current Linux surface is a simpler text panel with a thin idle bar.
 
-On macOS, launch the packaged `Verge.app`, which includes the Rust reader. Running a standalone Swift executable without its sibling `verge-state` produces an unavailable-reader message. Native Mac verification is still pending.
+On macOS, launch the packaged `Verge.app`, which includes the Rust reader. Running a standalone Swift executable without its sibling `verge-state` produces an unavailable-reader message. Automated AppKit contracts pass; the real-host interaction pass is still pending.
 
 ## Only one agent appears
 
@@ -27,6 +27,12 @@ If the Verge hook is installed, first start Verge from the same folder as the re
 The running helper denies when the broker is absent, disconnected, timed out or fails identity validation. To restore Claude-managed decisions, run `scripts/install-claude-signals.ps1 -Mode Uninstall` and reload Claude. The removal preserves unrelated hooks and later status-line changes; it does not overwrite newer settings from an old backup. Follow the [full recovery guide](design/CLAUDE_APPROVAL_SETUP.md).
 
 If installation reports an unsupported status-line setup or a different registered helper, inspect the existing configuration instead of forcing the installer past its guard.
+
+## Remove or update a portable install
+
+Exit Verge before replacing or deleting its folder or `Verge.app`. Updates are manual: download the newer signed archive from GitHub Releases and verify its entry in `SHA256SUMS.txt`. Windows Claude hook registrations contain an absolute path, so rerun the installer after moving or replacing the portable folder.
+
+Before removing a Windows install with Claude integration, run `scripts/install-claude-signals.ps1 -Mode Uninstall` and reload Claude. You may then delete the portable folder and optional `%LOCALAPPDATA%\Verge\signals` metadata. Verge has no background service or updater to remove.
 
 ## Native Windows tests fail on pointer position
 

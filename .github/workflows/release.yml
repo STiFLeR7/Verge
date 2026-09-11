@@ -1,0 +1,96 @@
+name: Release
+on:
+  push:
+    tags: ['v*']
+permissions:
+  contents: write
+jobs:
+  windows:
+    runs-on: windows-latest
+    environment: release
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: ./scripts/build-portable.ps1
+      - name: Sign and verify Windows binaries
+        shell: pwsh
+        env:
+          PFX_B64: ${{ secrets.WINDOWS_SIGNING_PFX_B64 }}
+          PFX_PASSWORD: ${{ secrets.WINDOWS_SIGNING_PFX_PASSWORD }}
+        run: |
+          $pfx=Join-Path $env:RUNNER_TEMP 'verge-signing.pfx'
+          [IO.File]::WriteAllBytes($pfx,[Convert]::FromBase64String($env:PFX_B64))
+          $signtool=(Get-ChildItem 'C:/Program Files (x86)/Windows Kits/10/bin/*/x64/signtool.exe' | Sort-Object FullName | Select-Object -Last 1).FullName
+          if(!$signtool){throw 'signtool.exe not found'}
+          foreach($name in 'verge.exe','verge-state.exe','verge-claude-hook.exe') {
+            & $signtool sign /fd SHA256 /td SHA256 /tr http://timestamp.digicert.com /f $pfx /p $env:PFX_PASSWORD "dist/windows/$name"
+            if($LASTEXITCODE -ne 0){throw "Signing failed: $name"}
+            & $signtool verify /pa /all "dist/windows/$name"
+            if($LASTEXITCODE -ne 0){throw "Signature verification failed: $name"}
+          }
+          Remove-Item -LiteralPath $pfx -Force
+          Compress-Archive -Path dist/windows/* -DestinationPath dist/verge-windows-x64.zip -Force
+      - uses: actions/upload-artifact@v4
+        with: {name: release-windows, path: dist/verge-windows-x64.zip}
+  linux:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: bash scripts/build-portable.sh
+      - uses: actions/upload-artifact@v4
+        with: {name: release-linux, path: dist/verge-linux-x86_64.tar.gz}
+  macos:
+    runs-on: macos-14
+    environment: release
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Import Developer ID certificate
+        env:
+          CERT_B64: ${{ secrets.MACOS_CERTIFICATE_P12_B64 }}
+          CERT_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+        run: |
+          certificate="$RUNNER_TEMP/verge.p12"
+          keychain="$RUNNER_TEMP/verge.keychain-db"
+          printf '%s' "$CERT_B64" | base64 --decode > "$certificate"
+          security create-keychain -p verge-ci "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p verge-ci "$keychain"
+          security import "$certificate" -k "$keychain" -P "$CERT_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k verge-ci "$keychain"
+          security list-keychain -d user -s "$keychain"
+      - name: Build, sign, notarize, and staple
+        env:
+          MACOS_SIGNING_IDENTITY: ${{ secrets.MACOS_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+        run: |
+          bash scripts/build-portable.sh
+          codesign --verify --deep --strict dist/Verge.app
+          xcrun notarytool submit dist/verge-macos-arm64.zip --apple-id "$APPLE_ID" --team-id "$APPLE_TEAM_ID" --password "$APPLE_APP_PASSWORD" --wait
+          xcrun stapler staple dist/Verge.app
+          spctl --assess --type execute --verbose dist/Verge.app
+          rm dist/verge-macos-arm64.zip
+          ditto -c -k --keepParent dist/Verge.app dist/verge-macos-arm64.zip
+      - uses: actions/upload-artifact@v4
+        with: {name: release-macos, path: dist/verge-macos-arm64.zip}
+  publish-draft:
+    needs: [windows, linux, macos]
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with: {pattern: release-*, path: dist, merge-multiple: true}
+      - name: Validate and checksum release
+        shell: pwsh
+        run: |
+          $version=$env:GITHUB_REF_NAME.TrimStart('v')
+          ./scripts/check-release.ps1 -ArtifactDirectory dist -ExpectedVersion $version -RequireWindowsSignature
+          Get-ChildItem dist/verge-* | ForEach-Object { '{0}  {1}' -f (Get-FileHash $_ -Algorithm SHA256).Hash.ToLower(),$_.Name } | Set-Content dist/SHA256SUMS.txt
+      - name: Create draft release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create $env:GITHUB_REF_NAME --draft --generate-notes --title "Verge $env:GITHUB_REF_NAME" dist/verge-* dist/SHA256SUMS.txt

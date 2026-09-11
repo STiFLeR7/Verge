@@ -16,7 +16,7 @@ Verge is in development. The native shells have different levels of completeness
 |---|---|
 | **Windows** | Pre-release reference implementation: native Win32 surface, bundled Inter, agent discovery, session details, inactivity collapse and optional Claude approval controls. Native E2E checks pass. |
 | **Linux** | Pre-release X11/XWayland implementation: bundled Inter, local Codex data, provider/session navigation, inactivity collapse, theme-aware idle bar, work-area anchoring and RandR recovery. Native CI passes on Ubuntu 24.04; keyboard/accessibility review remains. |
-| **macOS** | Experimental AppKit shell targeting macOS 13+. GitHub-hosted macOS CI compiles Swift, validates the Rust presentation bridge, ad-hoc signs the app and creates its ZIP. Interactive native UI behavior remains unverified. |
+| **macOS** | Experimental AppKit shell targeting macOS 13+. GitHub-hosted macOS CI validates the Rust bridge, panel contract, session navigation, inactivity behavior, screen-change re-anchoring, ad-hoc signing and packaging. A real-host interaction pass remains. |
 
 Native Wayland and Linux/macOS direct approval controls are not implemented. See the [platform matrix](docs/design/PORTABILITY.md) and [latest E2E report](docs/design/E2E_PORTABILITY_2026-09-10.md).
 
@@ -57,7 +57,7 @@ From the repository root in PowerShell:
 ./dist/windows/verge.exe --open
 ```
 
-The archive is `dist/verge-windows-x64.zip`. Keep `verge.exe` and `verge-claude-hook.exe` together if you use the Claude gate. `--open` requests the expanded view; omit it for normal startup.
+The archive is `dist/verge-windows-x64.zip`. Keep `verge.exe` and `verge-claude-hook.exe` together if you use the Claude gate. The archive also contains the Claude install/remove script and its metadata observer. `--open` requests the expanded view; omit it for normal startup.
 
 For a development build:
 
@@ -90,6 +90,12 @@ The script bundles the Rust reader and Inter with the AppKit shell, checks the p
 Read the [Claude setup and recovery guide](docs/design/CLAUDE_APPROVAL_SETUP.md) before installing the Windows hook. The current installer expects a particular existing status-line setup; it is not a general-purpose installer.
 
 **When the hook is installed, keep Verge running.** If the helper executes but cannot reach its broker, it denies the request. Reload Claude after changing hook configuration. Moving a portable folder does not update an already registered absolute hook path.
+
+### Update and remove
+
+Verge 1.0 has no background updater. Download a newer signed archive from GitHub Releases, exit Verge, verify the published SHA-256 checksum, and replace the portable folder or `Verge.app`. On Windows, run the new Claude installer again if the folder path changed.
+
+To remove Verge, exit it and delete its portable folder or app bundle. If Claude integration was enabled, first run `scripts/install-claude-signals.ps1 -Mode Uninstall` and reload Claude. Optional observer signal files under `%LOCALAPPDATA%\Verge\signals` can be deleted after Verge and the observers are no longer running. See [troubleshooting](docs/TROUBLESHOOTING.md) for recovery details.
 
 ## Local data and privacy
 
