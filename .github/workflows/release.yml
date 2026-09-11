@@ -41,11 +41,13 @@ jobs:
       - uses: actions/upload-artifact@v4
         with: {name: release-linux, path: dist/verge-linux-x86_64.tar.gz}
   macos:
-    runs-on: macos-14
+    runs-on: macos-15-arm64
     environment: release
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
+      - name: Verify Apple-silicon release host
+        run: test "$(uname -m)" = arm64
       - name: Import Developer ID certificate
         env:
           CERT_B64: ${{ secrets.MACOS_CERTIFICATE_P12_B64 }}

@@ -21,8 +21,16 @@ final class Panel: NSPanel {
     override var canBecomeMain: Bool { false }
 }
 
-func panelFrame(in visibleFrame: NSRect, height: CGFloat) -> NSRect {
-    NSRect(x: visibleFrame.maxX - 340, y: visibleFrame.midY - height / 2, width: 340, height: height)
+func panelFrame(in visibleFrame: NSRect, fullFrame: NSRect? = nil, height: CGFloat) -> NSRect {
+    let width = CGFloat(340).rounded(.up)
+    let height = height.rounded(.up)
+    let fullFrame = fullFrame ?? visibleFrame
+    return NSRect(
+        x: (visibleFrame.maxX - width).rounded(),
+        y: (fullFrame.midY - height / 2).rounded(),
+        width: width,
+        height: height
+    )
 }
 
 final class HoverView: NSView {
@@ -61,6 +69,10 @@ final class App: NSObject, NSApplicationDelegate {
         panel.backgroundColor = .clear
         panel.hidesOnDeactivate = false
         panel.hasShadow = false
+        panel.isMovable = false
+        panel.isMovableByWindowBackground = false
+        panel.becomesKeyOnlyIfNeeded = true
+        panel.isReleasedWhenClosed = false
         view.wantsLayer = true
         view.layer?.backgroundColor = NSColor.black.cgColor
         view.layer?.cornerRadius = 16
@@ -115,7 +127,7 @@ final class App: NSObject, NSApplicationDelegate {
         guard let screen = panel.screen ?? NSScreen.main else { return }
         let frame = screen.visibleFrame
         let height: CGFloat = collapsed ? 6 : 320
-        panel.setFrame(panelFrame(in: frame, height: height), display: true)
+        panel.setFrame(panelFrame(in: frame, fullFrame: screen.frame, height: height), display: true)
         stack.isHidden = collapsed
         view.layer?.backgroundColor = (collapsed ? NSColor.labelColor : NSColor.black).cgColor
         guard !collapsed else { return }
@@ -218,7 +230,8 @@ if CommandLine.arguments.contains("--check-ui-contract") {
         && panel.collectionBehavior.contains(.canJoinAllSpaces)
         && panel.collectionBehavior.contains(.fullScreenAuxiliary)
         && !panel.isOpaque && !panel.hasShadow && !panel.canBecomeKey && !panel.canBecomeMain
-        && frame.map { abs(panel.frame.maxX - $0.maxX) < 0.5 && abs(panel.frame.midY - $0.midY) < 0.5 } == true
+        && frame.map { abs(panel.frame.maxX - $0.maxX) < 0.5 } == true
+        && (panel.screen ?? NSScreen.main).map { abs(panel.frame.midY - $0.frame.midY) < 0.5 } == true
     delegate.stop()
     guard valid else { fputs("Native UI contract failed\n", stderr); exit(1) }
     print("Native UI contract passed")
