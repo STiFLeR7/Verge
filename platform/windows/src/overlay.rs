@@ -21,22 +21,23 @@ use windows::core::PCWSTR;
 use windows::Win32::Foundation::{BOOL, HWND, LPARAM, LRESULT, POINT, RECT, SIZE, WPARAM};
 use windows::Win32::Graphics::Gdi::{
     CreateCompatibleDC, CreateDIBSection, CreateFontW, DeleteDC, DeleteObject, DrawTextW, GdiFlush,
-    GetDC, ReleaseDC, SelectObject, SetBkColor, SetBkMode, SetTextColor, AC_SRC_ALPHA, AC_SRC_OVER,
-    ANTIALIASED_QUALITY, BITMAPINFO, BITMAPINFOHEADER, BI_RGB, BLENDFUNCTION, DIB_RGB_COLORS,
-    DT_END_ELLIPSIS, DT_NOPREFIX, DT_SINGLELINE, FF_DONTCARE, FW_SEMIBOLD, HBITMAP, HDC, HFONT,
-    OPAQUE, OUT_DEFAULT_PRECIS,
+    GetDC, GetMonitorInfoW, MonitorFromWindow, ReleaseDC, SelectObject, SetBkColor, SetBkMode,
+    SetTextColor, AC_SRC_ALPHA, AC_SRC_OVER, ANTIALIASED_QUALITY, BITMAPINFO, BITMAPINFOHEADER,
+    BI_RGB, BLENDFUNCTION, DIB_RGB_COLORS, DT_END_ELLIPSIS, DT_NOPREFIX, DT_SINGLELINE,
+    FF_DONTCARE, FW_SEMIBOLD, HBITMAP, HDC, HFONT, MONITORINFO, MONITOR_DEFAULTTONEAREST, OPAQUE,
+    OUT_DEFAULT_PRECIS,
 };
 use windows::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows::Win32::UI::HiDpi::{
     GetDpiForWindow, SetProcessDpiAwarenessContext, DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
-    CreateWindowExW, DefWindowProcW, DispatchMessageW, GetCursorPos, GetMessageW, GetSystemMetrics,
+    CreateWindowExW, DefWindowProcW, DispatchMessageW, GetCursorPos, GetMessageW,
     GetWindowLongPtrW, GetWindowRect, KillTimer, LoadCursorW, PostQuitMessage, RegisterClassExW,
     SetTimer, SetWindowLongPtrW, SetWindowPos, SystemParametersInfoW, TranslateMessage,
-    UpdateLayeredWindow, HWND_TOPMOST, IDC_ARROW, MSG, SM_CXSCREEN, SM_CYSCREEN,
-    SPI_GETCLIENTAREAANIMATION, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_SHOWWINDOW,
-    SYSTEM_PARAMETERS_INFO_UPDATE_FLAGS, ULW_ALPHA, WM_DESTROY, WM_TIMER, WNDCLASSEXW,
+    UpdateLayeredWindow, HWND_TOPMOST, IDC_ARROW, MSG, SPI_GETCLIENTAREAANIMATION, SWP_NOACTIVATE,
+    SWP_NOMOVE, SWP_NOSIZE, SWP_SHOWWINDOW, SYSTEM_PARAMETERS_INFO_UPDATE_FLAGS, ULW_ALPHA,
+    WM_DESTROY, WM_DISPLAYCHANGE, WM_DPICHANGED, WM_SETTINGCHANGE, WM_TIMER, WNDCLASSEXW,
     WS_EX_LAYERED, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_EX_TRANSPARENT, WS_POPUP,
 };
 
@@ -648,6 +649,28 @@ unsafe extern "system" fn window_proc(
         return permission_input(hwnd, msg, wparam, lparam);
     }
     match msg {
+        WM_DISPLAYCHANGE | WM_SETTINGCHANGE | WM_DPICHANGED => {
+            let ptr =
+                GetWindowLongPtrW(hwnd, windows::Win32::UI::WindowsAndMessaging::GWLP_USERDATA);
+            if ptr == 0 {
+                return DefWindowProcW(hwnd, msg, wparam, lparam);
+            }
+            if msg == WM_DPICHANGED && lparam.0 != 0 {
+                let suggested = *(lparam.0 as *const RECT);
+                let _ = SetWindowPos(
+                    hwnd,
+                    HWND_TOPMOST,
+                    suggested.left,
+                    suggested.top,
+                    suggested.right - suggested.left,
+                    suggested.bottom - suggested.top,
+                    SWP_NOACTIVATE,
+                );
+            }
+            let state = &*(ptr as *const WindowState<Box<dyn Fn() -> OverlayContent>>);
+            present(hwnd, state);
+            LRESULT(0)
+        }
         WM_TIMER => {
             let ptr =
                 GetWindowLongPtrW(hwnd, windows::Win32::UI::WindowsAndMessaging::GWLP_USERDATA);
@@ -1076,12 +1099,45 @@ fn surface_coverage(x: f32, y: f32, l: &Layout) -> f32 {
 
 // ---- Presentation ----
 
+fn anchored_position(
+    work: RECT,
+    width: i32,
+    height: i32,
+    rail_offset: i32,
+    rail_height: i32,
+    upward_bias_divisor: i32,
+) -> POINT {
+    let work_height = work.bottom - work.top;
+    let rail_top =
+        work.top + ((work_height - rail_height) / 2 - work_height / upward_bias_divisor).max(8);
+    POINT {
+        x: work.right - width,
+        y: (rail_top - rail_offset)
+            .max(work.top)
+            .min((work.bottom - height).max(work.top)),
+    }
+}
+
+unsafe fn monitor_work_area(hwnd: HWND) -> Option<RECT> {
+    let monitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
+    let mut info = MONITORINFO {
+        cbSize: std::mem::size_of::<MONITORINFO>() as u32,
+        ..Default::default()
+    };
+    GetMonitorInfoW(monitor, &mut info)
+        .as_bool()
+        .then_some(info.rcWork)
+}
+
 fn present<F: Fn() -> OverlayContent>(hwnd: HWND, state: &WindowState<F>) {
     unsafe {
+        let Some(work) = monitor_work_area(hwnd) else {
+            return;
+        };
         let screen_dc = GetDC(None);
         let scale = GetDpiForWindow(hwnd).max(96) as f32 / 96.0;
-        let screen_h = GetSystemMetrics(SM_CYSCREEN);
-        let content = fit_to_display(&state.display_content(), (screen_h - 16) as f32 / scale);
+        let work_height = work.bottom - work.top;
+        let content = fit_to_display(&state.display_content(), (work_height - 16) as f32 / scale);
         let layout = compute_layout(&content, state.progress(), scale, state.selected.get());
 
         let (bitmap, mem_dc, pixels) = match create_argb_dib(screen_dc, layout.width, layout.height)
@@ -1164,16 +1220,17 @@ fn present<F: Fn() -> OverlayContent>(hwnd: HWND, state: &WindowState<F>) {
         } else {
             let _ = KillTimer(hwnd, tokens::TIMER_ANIM);
         }
-        let screen_w = GetSystemMetrics(SM_CXSCREEN);
-        let x = screen_w - layout.width;
-        // Vertically centered with a slight upward bias (design §3).
-        let rail_top = ((screen_h - layout.rail_height) / 2 - screen_h / 12).max(8);
-        let y = (rail_top - layout.rail_offset)
-            .max(0)
-            .min((screen_h - layout.height).max(0));
+        let anchor = anchored_position(
+            work,
+            layout.width,
+            layout.height,
+            layout.rail_offset,
+            layout.rail_height,
+            12,
+        );
 
         let src_point = POINT { x: 0, y: 0 };
-        let dst_point = POINT { x, y };
+        let dst_point = anchor;
         let size = SIZE {
             cx: layout.width,
             cy: layout.height,
@@ -2437,6 +2494,34 @@ fn to_wide(s: &str) -> Vec<u16> {
 mod visual_tests {
     use super::*;
     use verge_core::ports::ToolGlyph;
+
+    #[test]
+    fn monitor_anchor_supports_negative_origins() {
+        let work = RECT {
+            left: -2560,
+            top: 40,
+            right: 0,
+            bottom: 1400,
+        };
+        let point = anchored_position(work, 320, 420, 30, 360, 12);
+        assert_eq!(point.x, -320);
+        assert!(point.y >= work.top);
+        assert!(point.y + 420 <= work.bottom);
+    }
+
+    #[test]
+    fn monitor_anchor_respects_taskbar_reduced_work_area() {
+        let work = RECT {
+            left: 0,
+            top: 0,
+            right: 1920,
+            bottom: 1040,
+        };
+        let point = anchored_position(work, 420, 900, 40, 700, 12);
+        assert_eq!(point.x, 1500);
+        assert!(point.y >= work.top);
+        assert!(point.y + 900 <= work.bottom);
+    }
 
     #[test]
     fn mouse_back_includes_leading_padding_at_every_scale() {
