@@ -64,7 +64,12 @@ function Capture($name) {
 }
 function BodyHash($name) {
     $image=[System.Drawing.Bitmap]::FromFile((Join-Path $out $name))
-    $crop=$image.Clone([System.Drawing.Rectangle]::new(18,70,220,170),$image.PixelFormat)
+    $crop=$image.Clone([System.Drawing.Rectangle]::new(
+        [int][Math]::Round(16*$dpi),
+        [int][Math]::Round(60*$dpi),
+        [int][Math]::Round(220*$dpi),
+        [int][Math]::Round(140*$dpi)
+    ),$image.PixelFormat)
     $stream=[System.IO.MemoryStream]::new()
     try {
         $crop.Save($stream,[System.Drawing.Imaging.ImageFormat]::Png)
