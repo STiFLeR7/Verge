@@ -20,13 +20,22 @@ jobs:
         run: node scripts/claude-signal.test.cjs
       - if: runner.os == 'Windows'
         run: ./scripts/build-portable.ps1
+      - if: runner.os == 'Windows'
+        run: |
+          cargo build --release -p verge-platform-windows --example visual_states
+          ./platform/windows/tests/window_contract.ps1
+          ./platform/windows/tests/session_ui_contract.ps1 -Brand Claude
+          ./platform/windows/tests/session_ui_contract.ps1 -Brand ChatGPT
+          ./platform/windows/tests/permission_ui_contract.ps1
       - if: runner.os != 'Windows'
         run: bash scripts/build-portable.sh
+      - if: runner.os == 'macOS'
+        run: swift test --package-path ui/ambient/macos
       - if: runner.os == 'Linux'
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y xvfb xdotool xfonts-base
-          xvfb-run -a python3 platform/linux/x11/tests/native_smoke.py target/release/verge
+          sudo apt-get install -y xvfb xserver-xephyr xdotool xfonts-base x11-utils x11-xserver-utils
+          xvfb-run -a bash platform/linux/x11/tests/run_native_smoke.sh target/release/verge
       - uses: actions/upload-artifact@v4
         with:
           name: verge-${{ runner.os }}-${{ runner.arch }}

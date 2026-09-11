@@ -9,14 +9,14 @@ exists but the behavior is not yet protected by an automated contract;
 
 | Capability | Windows | Linux X11/XWayland | macOS AppKit |
 |---|---|---|---|
-| Borderless native surface | MANUAL — layered tool-window style passes; popup/frame assertion pending | MANUAL — override-redirect X11 window; contract assertion pending | MANUAL — Swift build passes; panel contract pending |
-| Always on top over normal windows | PASS — topmost style and focus retention | MANUAL — `_NET_WM_STATE_ABOVE`; behavioral assertion pending | MANUAL — status-bar panel level; launch assertion pending |
-| Always on top with fullscreen content | MANUAL | MANUAL | MANUAL |
-| Click-through outside visible material | PASS — dynamic `WS_EX_TRANSPARENT` assertion | MANUAL — X11 input-shape coverage pending | MANUAL — native hit-region coverage pending |
-| Interactive visible region | PASS — physical hover and native session/permission contracts | PASS — native mouse navigation under Xvfb | MANUAL — build-host snapshot only |
+| Borderless native surface | PASS — popup with no caption/frame | PASS — override-redirect window | PASS — borderless nonactivating panel |
+| Always on top over normal windows | PASS — topmost style and focus retention | PASS — `_NET_WM_STATE_ABOVE` contract | PASS — status-bar panel level |
+| Always on top with fullscreen content | PASS — real fullscreen fixture remains below Verge | MANUAL | MANUAL — auxiliary flag passes; behavioral evidence pending |
+| Click-through outside visible material | PASS — dynamic `WS_EX_TRANSPARENT` assertion | PASS — expanded and collapsed input shapes | MANUAL — native hit-region coverage pending |
+| Interactive visible region | PASS — physical hover and native session/permission contracts | PASS — native mouse navigation under Xephyr | MANUAL — build-host snapshot only |
 | Multi-monitor placement | MANUAL | MANUAL | MANUAL |
-| Display/DPI/work-area changes | MANUAL — single-window DPI is covered | MANUAL | MANUAL |
-| Session/window lifecycle | PASS — fixture creation, interaction and cleanup | PASS — process start, interaction and termination under Xvfb | MANUAL — build/package lifecycle only |
+| Display/DPI/work-area changes | PASS — monitor work-area, `WM_DISPLAYCHANGE` and `WM_DPICHANGED` recovery | PASS — real RandR mode change in Xephyr | MANUAL |
+| Session/window lifecycle | PASS — fixture creation, interaction and cleanup | PASS — process start, interaction and termination under Xephyr | PASS — panel creation and termination contract |
 
 ## Commands
 
@@ -29,17 +29,24 @@ pwsh -NoProfile -File platform/windows/tests/session_ui_contract.ps1 -Brand Chat
 pwsh -NoProfile -File platform/windows/tests/permission_ui_contract.ps1
 ```
 
-Linux after building the release executable:
+Linux after building the release executable and installing Xvfb, Xephyr,
+`xdotool`, `x11-utils`, and `x11-xserver-utils`:
 
 ```sh
-xvfb-run -a python3 platform/linux/x11/tests/native_smoke.py dist/linux/verge
+xvfb-run -a bash platform/linux/x11/tests/run_native_smoke.sh target/release/verge
 ```
 
-macOS currently runs the build-host bridge check inside
-`scripts/build-portable.sh`. It compiles and executes the Swift binary without
-opening the panel. Phase 3 of the
-[v1 release plan](../../docs/superpowers/plans/2026-09-10-verge-v1.0.0-release.md)
-adds the missing native panel contract and completes this matrix.
+macOS runs the build-host bridge check inside `scripts/build-portable.sh` and
+the native panel contract with:
+
+```sh
+swift test --package-path ui/ambient/macos
+```
+
+The executable contract is
+[`ui/ambient/macos/Tests/native_contract.swift`](../../ui/ambient/macos/Tests/native_contract.swift).
+The remaining `MANUAL` cells require real multi-display or interaction
+evidence before v1.0.0.
 
 Current evidence and its limits are recorded in
 [`docs/design/E2E_PORTABILITY_2026-09-10.md`](../../docs/design/E2E_PORTABILITY_2026-09-10.md).

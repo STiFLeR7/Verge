@@ -70,8 +70,8 @@ fn run(
     conn.create_colormap(ColormapAlloc::NONE, colormap, screen.root, visual_id)?;
 
     let window = conn.generate_id()?;
-    let x = screen.width_in_pixels as i16 - WINDOW_WIDTH as i16 - SCREEN_MARGIN;
-    let y = screen.height_in_pixels as i16 - WINDOW_HEIGHT as i16 - SCREEN_MARGIN;
+    let mut x = screen.width_in_pixels as i16 - WINDOW_WIDTH as i16 - SCREEN_MARGIN;
+    let mut y = screen.height_in_pixels as i16 - WINDOW_HEIGHT as i16 - SCREEN_MARGIN;
 
     conn.create_window(
         32,
@@ -105,6 +105,21 @@ fn run(
         net_wm_state,
         x11rb::protocol::xproto::AtomEnum::ATOM,
         &[net_wm_state_above],
+    )?;
+    let net_wm_window_type = conn
+        .intern_atom(false, b"_NET_WM_WINDOW_TYPE")?
+        .reply()?
+        .atom;
+    let net_wm_window_type_dock = conn
+        .intern_atom(false, b"_NET_WM_WINDOW_TYPE_DOCK")?
+        .reply()?
+        .atom;
+    conn.change_property32(
+        PropMode::REPLACE,
+        window,
+        net_wm_window_type,
+        x11rb::protocol::xproto::AtomEnum::ATOM,
+        &[net_wm_window_type_dock],
     )?;
 
     conn.change_property8(
@@ -142,12 +157,23 @@ fn run(
     let mut pointer = None;
     let mut dirty = true;
     let mut last_refresh = Instant::now();
+    let mut last_geometry = Instant::now();
     loop {
         if let Ok(next) = receiver.try_recv() {
             content = next;
             dirty = true;
         }
         let now = Instant::now();
+        if last_geometry.elapsed() >= Duration::from_millis(250) {
+            let root = conn.get_geometry(screen.root)?.reply()?;
+            let next_x = root.width as i16 - WINDOW_WIDTH as i16 - SCREEN_MARGIN;
+            let next_y = root.height as i16 - WINDOW_HEIGHT as i16 - SCREEN_MARGIN;
+            if (x, y) != (next_x, next_y) {
+                (x, y) = (next_x, next_y);
+                dirty = true;
+            }
+            last_geometry = now;
+        }
         let collapsed = ui.collapsed;
         ui.tick(now, &content);
         let position = conn.query_pointer(screen.root)?.reply()?;
@@ -194,6 +220,7 @@ fn run(
             conn.configure_window(
                 window,
                 &ConfigureWindowAux::new()
+                    .x(i32::from(x))
                     .y(i32::from(top))
                     .height(u32::from(height))
                     .stack_mode(StackMode::ABOVE),

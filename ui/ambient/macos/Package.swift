@@ -1,5 +1,6 @@
 // swift-tools-version: 5.9
 import PackageDescription
 let package = Package(name: "VergeMacOS", platforms: [.macOS(.v13)], targets: [
-    .executableTarget(name: "verge-macos", path: "Sources")
+    .executableTarget(name: "verge-macos", path: "Sources"),
+    .testTarget(name: "VergeMacOSTests", dependencies: ["verge-macos"], path: "Tests")
 ])

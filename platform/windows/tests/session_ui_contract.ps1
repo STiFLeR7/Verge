@@ -71,7 +71,7 @@ function ClickFooter($fraction, $y) {
     $point = ($y -shl 16) -bor $x
     [void][VergeWindowCheck]::PostMessageW($hwnd,0x0201,[IntPtr]1,[IntPtr]$point)
     [void][VergeWindowCheck]::PostMessageW($hwnd,0x0202,[IntPtr]0,[IntPtr]$point)
-    Start-Sleep -Milliseconds 450
+    Start-Sleep -Milliseconds 650
 }
 function Same($a,$b,$message) { if ((BodyHash $a) -ne (BodyHash $b)) { throw $message } }
 function Different($a,$b,$message) { if ((BodyHash $a) -eq (BodyHash $b)) { throw $message } }
