@@ -8,4 +8,5 @@ license-file.workspace = true
 verge-core = { path = "../../../core" }
 
 [target.'cfg(target_os = "linux")'.dependencies]
-x11rb = { version = "0.14", features = ["shape"] }
+x11rb = { version = "0.14", features = ["randr", "shape"] }
+fontdue = "0.9"

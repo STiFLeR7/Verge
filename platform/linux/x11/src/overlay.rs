@@ -3,13 +3,15 @@
 
 use std::time::{Duration, Instant};
 
+use fontdue::{Font, FontSettings};
 use verge_core::ports::{OverlayContent, OverlaySurface};
 
 use x11rb::connection::Connection;
+use x11rb::protocol::randr::ConnectionExt as _;
 use x11rb::protocol::shape::{self, ConnectionExt as _};
 use x11rb::protocol::xproto::{
     ColormapAlloc, ConfigureWindowAux, ConnectionExt as _, CreateGCAux, CreateWindowAux, EventMask,
-    PropMode, Rectangle, StackMode, WindowClass,
+    ImageFormat, PropMode, Rectangle, StackMode, WindowClass,
 };
 use x11rb::wrapper::ConnectionExt as _;
 
@@ -20,8 +22,65 @@ const POLL_SLEEP: Duration = Duration::from_millis(50);
 
 /// ARGB8888, alpha in the top byte — opaque black.
 const BACKGROUND: u32 = 0xFF00_0000;
-/// Fully opaque light gray, matching `platform/windows`'s `TEXT_COLOR`.
-const TEXT_COLOR: u32 = 0xFFE6_E6E6;
+const IDLE_LIGHT: u32 = 0xFFFF_FFFF;
+
+fn work_area(
+    conn: &impl Connection,
+    root: u32,
+    atom: u32,
+    fallback: (i32, i32, i32, i32),
+) -> (i32, i32, i32, i32) {
+    let monitor = conn
+        .randr_get_monitors(root, true)
+        .ok()
+        .and_then(|cookie| cookie.reply().ok())
+        .and_then(|reply| {
+            reply
+                .monitors
+                .iter()
+                .find(|monitor| monitor.primary)
+                .or_else(|| reply.monitors.first())
+                .map(|monitor| {
+                    (
+                        i32::from(monitor.x),
+                        i32::from(monitor.y),
+                        i32::from(monitor.x) + i32::from(monitor.width),
+                        i32::from(monitor.y) + i32::from(monitor.height),
+                    )
+                })
+        })
+        .unwrap_or(fallback);
+    let desktop = conn
+        .get_property(
+            false,
+            root,
+            atom,
+            x11rb::protocol::xproto::AtomEnum::CARDINAL,
+            0,
+            4,
+        )
+        .ok()
+        .and_then(|cookie| cookie.reply().ok())
+        .and_then(|reply| reply.value32().map(|values| values.collect::<Vec<_>>()))
+        .filter(|values| values.len() == 4)
+        .map(|values| {
+            let left = values[0] as i32;
+            let top = values[1] as i32;
+            (left, top, left + values[2] as i32, top + values[3] as i32)
+        })
+        .unwrap_or(fallback);
+    let intersection = (
+        monitor.0.max(desktop.0),
+        monitor.1.max(desktop.1),
+        monitor.2.min(desktop.2),
+        monitor.3.min(desktop.3),
+    );
+    if intersection.2 > intersection.0 && intersection.3 > intersection.1 {
+        intersection
+    } else {
+        monitor
+    }
+}
 
 pub struct X11OverlaySurface;
 
@@ -69,9 +128,21 @@ fn run(
     let colormap = conn.generate_id()?;
     conn.create_colormap(ColormapAlloc::NONE, colormap, screen.root, visual_id)?;
 
+    let net_workarea = conn.intern_atom(false, b"_NET_WORKAREA")?.reply()?.atom;
+    let mut area = work_area(
+        &conn,
+        screen.root,
+        net_workarea,
+        (
+            0,
+            0,
+            i32::from(screen.width_in_pixels),
+            i32::from(screen.height_in_pixels),
+        ),
+    );
     let window = conn.generate_id()?;
-    let mut x = screen.width_in_pixels as i16 - WINDOW_WIDTH as i16 - SCREEN_MARGIN;
-    let mut y = screen.height_in_pixels as i16 - WINDOW_HEIGHT as i16 - SCREEN_MARGIN;
+    let mut x = (area.2 - i32::from(WINDOW_WIDTH) - i32::from(SCREEN_MARGIN)) as i16;
+    let mut y = (area.3 - i32::from(WINDOW_HEIGHT) - i32::from(SCREEN_MARGIN)) as i16;
 
     conn.create_window(
         32,
@@ -131,17 +202,13 @@ fn run(
     )?;
     conn.map_window(window)?;
 
-    let gc_clear = conn.generate_id()?;
-    conn.create_gc(gc_clear, window, &CreateGCAux::new().foreground(BACKGROUND))?;
-
-    let font = conn.generate_id()?;
-    conn.open_font(font, b"fixed")?;
-    let gc_text = conn.generate_id()?;
-    conn.create_gc(
-        gc_text,
-        window,
-        &CreateGCAux::new().foreground(TEXT_COLOR).font(font),
+    let gc = conn.generate_id()?;
+    conn.create_gc(gc, window, &CreateGCAux::new())?;
+    let font = Font::from_bytes(
+        include_bytes!("../../../windows/assets/fonts/Inter-Regular.ttf").as_slice(),
+        FontSettings::default(),
     )?;
+    let mut idle_bar_color = idle_color();
 
     conn.flush()?;
 
@@ -158,6 +225,7 @@ fn run(
     let mut dirty = true;
     let mut last_refresh = Instant::now();
     let mut last_geometry = Instant::now();
+    let mut last_theme_refresh = Instant::now();
     loop {
         if let Ok(next) = receiver.try_recv() {
             content = next;
@@ -166,13 +234,25 @@ fn run(
         let now = Instant::now();
         if last_geometry.elapsed() >= Duration::from_millis(250) {
             let root = conn.get_geometry(screen.root)?.reply()?;
-            let next_x = root.width as i16 - WINDOW_WIDTH as i16 - SCREEN_MARGIN;
-            let next_y = root.height as i16 - WINDOW_HEIGHT as i16 - SCREEN_MARGIN;
+            area = work_area(
+                &conn,
+                screen.root,
+                net_workarea,
+                (0, 0, i32::from(root.width), i32::from(root.height)),
+            );
+            let next_x = (area.2 - i32::from(WINDOW_WIDTH) - i32::from(SCREEN_MARGIN)) as i16;
+            let next_y = (area.3 - i32::from(WINDOW_HEIGHT) - i32::from(SCREEN_MARGIN)) as i16;
             if (x, y) != (next_x, next_y) {
                 (x, y) = (next_x, next_y);
                 dirty = true;
             }
             last_geometry = now;
+        }
+        if last_theme_refresh.elapsed() >= REFRESH {
+            let next = idle_color();
+            dirty |= next != idle_bar_color;
+            idle_bar_color = next;
+            last_theme_refresh = now;
         }
         let collapsed = ui.collapsed;
         ui.tick(now, &content);
@@ -239,7 +319,7 @@ fn run(
                     height,
                 }],
             )?;
-            draw(&conn, window, gc_clear, gc_text, &content, &ui)?;
+            draw(&conn, window, gc, &font, idle_bar_color, &content, &ui)?;
             last_refresh = now;
             dirty = false;
         }
@@ -250,37 +330,21 @@ fn run(
 fn draw(
     conn: &impl Connection,
     window: x11rb::protocol::xproto::Window,
-    gc_clear: x11rb::protocol::xproto::Gcontext,
-    gc_text: x11rb::protocol::xproto::Gcontext,
+    gc: x11rb::protocol::xproto::Gcontext,
+    font: &Font,
+    idle_color: u32,
     content: &OverlayContent,
     ui: &Interaction,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    conn.poly_fill_rectangle(
-        window,
-        gc_clear,
-        &[Rectangle {
-            x: 0,
-            y: 0,
-            width: WINDOW_WIDTH,
-            height: WINDOW_HEIGHT,
-        }],
-    )?;
+    let height = if ui.collapsed { 6 } else { WINDOW_HEIGHT };
+    let mut pixels = vec![BACKGROUND; WINDOW_WIDTH as usize * height as usize];
 
     if ui.collapsed {
-        conn.poly_fill_rectangle(
-            window,
-            gc_text,
-            &[Rectangle {
-                x: 0,
-                y: 0,
-                width: WINDOW_WIDTH,
-                height: 6,
-            }],
-        )?;
+        pixels.fill(idle_color);
     } else {
         for (i, glyph) in content.glyphs.iter().enumerate() {
             let x = (i * WINDOW_WIDTH as usize / content.glyphs.len()) as i16 + 8;
-            conn.poly_text8(window, gc_text, x, 20, &text_item8(&glyph.label))?;
+            draw_text(&mut pixels, x as i32, 20, &glyph.label, font, 13.0);
         }
         let mut lines = vec![];
         if let Some(g) = content
@@ -302,7 +366,14 @@ fn draw(
                     (184, format!("{} / {}", index + 1, g.sessions.len())),
                     (284, ">".into()),
                 ] {
-                    conn.poly_text8(window, gc_text, x, FOOTER + 20, &text_item8(&text))?;
+                    draw_text(
+                        &mut pixels,
+                        x as i32,
+                        (FOOTER + 20) as i32,
+                        &text,
+                        font,
+                        13.0,
+                    );
                 }
             } else {
                 lines.push(g.activity_label.clone().unwrap_or_else(|| "Unknown".into()));
@@ -318,44 +389,93 @@ fn draw(
                     lines.extend(g.detail_lines.clone());
                 }
                 if !g.sessions.is_empty() {
-                    conn.poly_text8(
-                        window,
-                        gc_text,
+                    draw_text(
+                        &mut pixels,
                         8,
-                        FOOTER + 20,
-                        &text_item8(&format!("{} sessions >", g.sessions.len())),
-                    )?;
+                        (FOOTER + 20) as i32,
+                        &format!("{} sessions >", g.sessions.len()),
+                        font,
+                        13.0,
+                    );
                 }
             }
         } else {
             lines.push("No local sessions detected".into());
         }
         for (i, line) in lines.iter().take(11).enumerate() {
-            conn.poly_text8(window, gc_text, 8, 48 + i as i16 * 16, &text_item8(line))?;
+            draw_text(&mut pixels, 8, 48 + i as i32 * 16, line, font, 13.0);
         }
     }
 
+    let bytes =
+        unsafe { std::slice::from_raw_parts(pixels.as_ptr().cast::<u8>(), pixels.len() * 4) };
+    conn.put_image(
+        ImageFormat::Z_PIXMAP,
+        window,
+        gc,
+        WINDOW_WIDTH,
+        height,
+        0,
+        0,
+        0,
+        32,
+        bytes,
+    )?;
     conn.flush()?;
     Ok(())
 }
 
-/// Encodes one `PolyText8` `TEXTITEM8`: a length-prefixed 8-bit string with
-/// a (zero) horizontal delta — `x11rb` has no builder for this, its
-/// `items` field is the raw wire bytes (confirmed the hard way: passing
-/// UTF-8 text directly there produces a `BadLength` X error, since the
-/// first byte is read as the item's declared length, not text). `core`
-/// fonts are Latin-1, so non-Latin-1 characters (e.g. the `·` this
-/// surface's own `render()` uses) are re-encoded per `char`, not as raw
-/// UTF-8 bytes, or they render as garbage/mismatched-length glyphs.
-fn text_item8(s: &str) -> Vec<u8> {
-    let latin1: Vec<u8> = s
-        .chars()
-        .map(|c| if (c as u32) <= 0xFF { c as u8 } else { b'?' })
-        .take(254)
-        .collect();
-    let mut item = Vec::with_capacity(latin1.len() + 2);
-    item.push(latin1.len() as u8);
-    item.push(0); // delta
-    item.extend_from_slice(&latin1);
-    item
+fn draw_text(pixels: &mut [u32], mut x: i32, baseline: i32, text: &str, font: &Font, size: f32) {
+    for ch in text.chars() {
+        let (metrics, bitmap) = font.rasterize(ch, size);
+        let left = x + metrics.xmin;
+        let top = baseline - metrics.height as i32 - metrics.ymin;
+        for row in 0..metrics.height {
+            for column in 0..metrics.width {
+                let px = left + column as i32;
+                let py = top + row as i32;
+                if px >= 0 && py >= 0 && px < WINDOW_WIDTH as i32 && py < WINDOW_HEIGHT as i32 {
+                    let alpha = bitmap[row * metrics.width + column] as u32;
+                    let shade = 0xE6 * alpha / 255;
+                    pixels[py as usize * WINDOW_WIDTH as usize + px as usize] =
+                        0xFF00_0000 | shade << 16 | shade << 8 | shade;
+                }
+            }
+        }
+        x += metrics.advance_width.round() as i32;
+        if x >= WINDOW_WIDTH as i32 - 8 {
+            break;
+        }
+    }
+}
+
+fn idle_color() -> u32 {
+    let scheme = std::env::var("VERGE_COLOR_SCHEME").ok().or_else(|| {
+        std::process::Command::new("gsettings")
+            .args(["get", "org.gnome.desktop.interface", "color-scheme"])
+            .output()
+            .ok()
+            .filter(|output| output.status.success())
+            .and_then(|output| String::from_utf8(output.stdout).ok())
+    });
+    idle_color_for(scheme.as_deref())
+}
+
+fn idle_color_for(scheme: Option<&str>) -> u32 {
+    match scheme.map(str::to_ascii_lowercase).as_deref() {
+        Some(value) if value.contains("light") => BACKGROUND,
+        _ => IDLE_LIGHT,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn idle_bar_contrasts_with_light_and_dark_themes() {
+        assert_eq!(idle_color_for(Some("prefer-light")), BACKGROUND);
+        assert_eq!(idle_color_for(Some("prefer-dark")), IDLE_LIGHT);
+        assert_eq!(idle_color_for(None), IDLE_LIGHT);
+    }
 }

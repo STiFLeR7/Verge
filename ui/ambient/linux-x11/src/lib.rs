@@ -5,15 +5,8 @@
 //! `OverlayContent` and handing it to the platform's `OverlaySurface` is
 //! the entire job.
 //!
-//! **Not redesigned this pass.** `docs/design/VERGE_AMBIENT_DESIGN.md` and
-//! its Windows implementation (`docs/design/VERGE_AMBIENT_IMPLEMENTATION.md`)
-//! are explicitly Windows-only for this phase. This crate still renders
-//! plain text via `platform/linux/x11`'s existing `PolyText8`-based
-//! drawing — it is adapted here only mechanically, to keep
-//! `cargo build --workspace` green after `core::ports::OverlayContent`
-//! gained a structured shape (`glyphs`/`overflow_count`) for the Windows
-//! capsule. Applying the approved design to Linux/X11 is future work, not
-//! done here.
+//! The platform renderer uses the bundled Inter files and consumes the same
+//! structured `OverlayContent` as Windows; product state remains upstream.
 
 use verge_core::domain::{AmbientState, Availability, UsageReading};
 use verge_core::ports::{Metric, OverlayContent, StateTint, ToolGlyph};

@@ -66,6 +66,16 @@ def pixels(window):
     finally:
         if image: xlib.XDestroyImage(image)
         xlib.XCloseDisplay(display)
+def pixel(window, x, y):
+    display = xlib.XOpenDisplay(None)
+    assert display, "Cannot open pixel display"
+    image = xlib.XGetImage(display, int(window), x, y, 1, 1, C.c_ulong(-1), 2)
+    try:
+        assert image, "Cannot capture native pixel"
+        return xlib.XGetPixel(image, 0, 0)
+    finally:
+        if image: xlib.XDestroyImage(image)
+        xlib.XCloseDisplay(display)
 def click_footer(window, x):
     xdo("mousemove", "--window", window, x, 256)
     xdo("click", 1)
@@ -129,6 +139,7 @@ with tempfile.TemporaryDirectory(prefix="verge-native-") as home:
         xdo("mousemove", 0, 0)
         wait_for(lambda: geometry(window)["HEIGHT"] == "6", 36)
         g = geometry(window)
+        assert pixel(window, 10, 2) & 0xFFFFFF == 0xFFFFFF, "Dark/unknown theme did not produce a white idle bar"
         shape = input_shape(window)
         assert shape == [(320, 6)], f"Collapsed input shape is wrong: {shape}"
         xdo("mousemove", int(g["X"]) + 10, int(g["Y"]) + 2)

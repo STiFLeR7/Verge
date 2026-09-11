@@ -15,7 +15,7 @@ Verge is in development. The native shells have different levels of completeness
 | Platform | Status |
 |---|---|
 | **Windows** | Pre-release reference implementation: native Win32 surface, bundled Inter, agent discovery, session details, inactivity collapse and optional Claude approval controls. Native E2E checks pass. |
-| **Linux** | Pre-release X11/XWayland baseline: local Codex data, provider/session navigation and inactivity collapse. Native CI passes on Ubuntu 24.04; final typography, theme, accessibility and monitor behavior remain unfinished. |
+| **Linux** | Pre-release X11/XWayland implementation: bundled Inter, local Codex data, provider/session navigation, inactivity collapse, theme-aware idle bar, work-area anchoring and RandR recovery. Native CI passes on Ubuntu 24.04; keyboard/accessibility review remains. |
 | **macOS** | Experimental AppKit shell targeting macOS 13+. GitHub-hosted macOS CI compiles Swift, validates the Rust presentation bridge, ad-hoc signs the app and creates its ZIP. Interactive native UI behavior remains unverified. |
 
 Native Wayland and Linux/macOS direct approval controls are not implemented. See the [platform matrix](docs/design/PORTABILITY.md) and [latest E2E report](docs/design/E2E_PORTABILITY_2026-09-10.md).
@@ -72,7 +72,7 @@ bash scripts/build-portable.sh
 ./dist/linux/verge
 ```
 
-The archive is `dist/verge-linux-<architecture>.tar.gz`. It targets the build host's architecture and system libraries; it is not a universal static binary. An X11 server or XWayland session with `DISPLAY` set is required.
+The archive is `dist/verge-linux-<architecture>.tar.gz` and includes Verge, `verge-state`, Inter, its OFL terms, the project license, and third-party notices. It targets the build host's architecture and system libraries; it is not a universal static binary. An X11 server or XWayland session with `DISPLAY` set is required.
 
 ### macOS — experimental
 

@@ -6,7 +6,8 @@ case "$(uname -s)" in
   Linux)
     cargo build --release -p verge-desktop --bin verge --bin verge-state
     mkdir -p dist/linux
-    cp "$targetdir/release/verge" "$targetdir/release/verge-state" LICENSE dist/linux/
+    cp "$targetdir/release/verge" "$targetdir/release/verge-state" LICENSE THIRD_PARTY_NOTICES.md dist/linux/
+    cp platform/windows/assets/fonts/Inter-*.ttf platform/windows/assets/fonts/OFL.txt dist/linux/
     tar -czf dist/verge-linux-"$(uname -m)".tar.gz -C dist/linux .
     ;;
   Darwin)
