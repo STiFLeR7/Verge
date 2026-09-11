@@ -100,7 +100,7 @@ mod tempfile_path {
             path.push(format!(
                 "verge-claude-contract-{}-{}.json",
                 std::process::id(),
-                fastrand()
+                unique_id()
             ));
             let mut file = std::fs::File::create(&path).expect("create temp fixture");
             file.write_all(json.as_bytes()).expect("write temp fixture");
@@ -118,11 +118,9 @@ mod tempfile_path {
         }
     }
 
-    fn fastrand() -> u64 {
-        use std::time::{SystemTime, UNIX_EPOCH};
-        SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .subsec_nanos() as u64
+    fn unique_id() -> u64 {
+        use std::sync::atomic::{AtomicU64, Ordering};
+        static NEXT: AtomicU64 = AtomicU64::new(0);
+        NEXT.fetch_add(1, Ordering::Relaxed)
     }
 }
