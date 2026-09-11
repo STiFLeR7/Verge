@@ -14,7 +14,17 @@ The binary directory defaults to this checkout's `target/debug`; provide the dir
 
 **Once installed, Verge must be running before Claude requests permission.** If the helper executes but the broker is absent/unreachable, identity validation fails, the connection is lost or the request times out, it returns deny. There is no automatic fallback to approval or to Claude's normal prompt. This only applies when Claude invokes `PermissionRequest`, not to calls already allowed by Claude's permission policy. Start Verge and retry the call. Restart/reload Claude after hook configuration changes so it uses the new registration.
 
-To return to Claude-managed decisions, remove only the command invoking `verge-claude-hook.exe` from `.claude/settings.json` under `hooks.PermissionRequest`, preserving the metadata observer and other user hooks, then reload Claude. Do not restore an old whole-settings backup over newer unrelated settings. If the binary itself cannot launch, Claude controls hook-error handling; that case is not guaranteed to emit the helper's deny JSON.
+## Remove and recover
+
+Run the same script in uninstall mode, then fully reload Claude:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/install-claude-signals.ps1 -Mode Uninstall
+```
+
+Uninstall does not require the old binary directory to exist. It removes every Verge metadata/gate command, including duplicates and Verge commands inside mixed hook groups, while preserving the other hooks in those groups and later status-line edits. It removes only the marked Verge observer line and never restores a whole-file backup. Running it again is safe. If the marked status-line block was manually changed into an unrecognized shape, it stops before writing either file so the configuration can be inspected.
+
+After reload, Claude resumes its own permission behavior. If the registered binary itself cannot launch before removal, Claude controls hook-error handling; that case is not guaranteed to emit the helper's deny JSON.
 
 ## Trust boundary
 

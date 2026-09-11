@@ -57,6 +57,27 @@ try {
     assert.throws(()=>execFileSync('powershell.exe',['-NoProfile','-ExecutionPolicy','Bypass','-File',path.join(__dirname,'install-claude-signals.ps1'),'-BinaryDirectory',binaries],{env,stdio:'pipe'}));
     assert.equal(fs.readFileSync(settings,'utf8'),before);
     assert.equal(fs.readFileSync(status,'utf8'),beforeStatus);
+
+    const duplicated=JSON.parse(before);
+    const observer=duplicated.hooks.Stop[0].hooks[0];
+    duplicated.hooks.Stop.push({hooks:[observer,{type:'command',command:'echo second-user-hook'}]});
+    duplicated.hooks.PermissionRequest.push({hooks:[gate[0],{type:'command',command:'echo mixed-user-hook'}]});
+    duplicated.newer=true;
+    fs.writeFileSync(settings,JSON.stringify(duplicated));
+    fs.appendFileSync(status,'\n// unrelated later status-line change');
+    fs.writeFileSync(settings+'.verge-backup',JSON.stringify({stale:true}));
+    for(let i=0;i<2;i++) execFileSync('powershell.exe',['-NoProfile','-ExecutionPolicy','Bypass','-File',path.join(__dirname,'install-claude-signals.ps1'),'-Mode','Uninstall','-BinaryDirectory',binaries],{env});
+    const removed=JSON.parse(fs.readFileSync(settings));
+    const commands=Object.values(removed.hooks).flatMap(groups=>groups).flatMap(group=>group.hooks ?? []).map(hook=>hook.command);
+    assert.equal(commands.some(command=>/verge-claude-hook\.exe|claude-signal\.cjs/i.test(command)),false);
+    assert.ok(commands.includes('echo user-hook'));
+    assert.ok(commands.includes('echo second-user-hook'));
+    assert.ok(commands.includes('echo mixed-user-hook'));
+    assert.equal(removed.newer,true);
+    assert.equal(removed.stale,undefined);
+    const removedStatus=fs.readFileSync(status,'utf8');
+    assert.equal(removedStatus.includes('// Verge metadata observer'),false);
+    assert.ok(removedStatus.includes('// unrelated later status-line change'));
   }
   console.log('PASS: real field shapes, no secret/prompt persistence, invalid input, activity mapping.');
 } finally { fs.rmSync(temp, { recursive:true,force:true }); }

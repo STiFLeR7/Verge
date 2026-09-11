@@ -24,7 +24,7 @@ Codex context is derived from the last reported request's total tokens and conte
 
 If the Verge hook is installed, first start Verge from the same folder as the registered `verge-claude-hook.exe`. Keep both files together. Reload Claude after changing its hook registration. Moving the portable directory does not migrate the absolute path stored in Claude settings.
 
-The running helper denies when the broker is absent, disconnected, timed out or fails identity validation. To restore Claude-managed decisions, remove only the helper command from `hooks.PermissionRequest`, preserve unrelated hooks, and reload Claude. Follow the [full recovery guide](design/CLAUDE_APPROVAL_SETUP.md); do not overwrite newer settings with an old backup.
+The running helper denies when the broker is absent, disconnected, timed out or fails identity validation. To restore Claude-managed decisions, run `scripts/install-claude-signals.ps1 -Mode Uninstall` and reload Claude. The removal preserves unrelated hooks and later status-line changes; it does not overwrite newer settings from an old backup. Follow the [full recovery guide](design/CLAUDE_APPROVAL_SETUP.md).
 
 If installation reports an unsupported status-line setup or a different registered helper, inspect the existing configuration instead of forcing the installer past its guard.
 

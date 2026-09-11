@@ -12,7 +12,7 @@ Include the affected revision, OS, component, reproducible steps with synthetic 
 
 - The Windows Claude fallback reads `.claude/.credentials.json` and the statistics cache. Credential contents must not enter logs or persisted observer output.
 - Claude status-line/hooks supply selected usage, context and activity metadata. Codex metadata is extracted from bounded rollout reads; those source files may also contain conversation text. This is not a guarantee that prompt bytes are never read from disk.
-- Windows discovery checks known installation locations and process names and can write missing observer integration files. The optional Claude installer changes settings/status-line files and creates backups.
+- Windows discovery checks known installation locations and process names and can write missing observer integration files. The optional Claude installer changes settings/status-line files and creates backups. Its uninstall mode removes only Verge-owned hook commands and the marked observer line; it never restores whole configuration files.
 - Permission review receives the proposed tool action so the user can inspect it. Treat screenshots of this view as potentially sensitive.
 - The current app has no telemetry or separate provider sign-in flow. Do not infer that local data is harmless to share.
 
