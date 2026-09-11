@@ -4,7 +4,7 @@ $ErrorActionPreference = 'Stop'
 Add-Type @'
 using System;
 using System.Runtime.InteropServices;
-public class VergeWindowCheck {
+public class VergePermissionWindowCheck {
     [DllImport("user32.dll")] public static extern bool PostMessageW(IntPtr w,uint m,IntPtr a,IntPtr b);
     public delegate bool EnumProc(IntPtr hwnd, IntPtr param);
     [StructLayout(LayoutKind.Sequential)] public struct Rect { public int Left,Top,Right,Bottom; }
@@ -43,26 +43,26 @@ foreach ($mode in @('Deny','Dismiss','Approve','ReviewClose')) {
     $env:VERGE_PREVIEW_DECISION_FILE = $previous
     try {
         Start-Sleep -Milliseconds 1800
-        $hwnd = [VergeWindowCheck]::Find($fixture.Id, 'VergeAmbientSurface')
+        $hwnd = [VergePermissionWindowCheck]::Find($fixture.Id, 'VergeAmbientSurface')
         Assert ($hwnd -ne [IntPtr]::Zero) 'Fixture overlay missing'
         Assert (!(Test-Path -LiteralPath $path)) 'Opening alone made a decision'
         if ($mode -eq 'Dismiss') {
-            [void][VergeWindowCheck]::PostMessageW($hwnd,0x100,[IntPtr]27,[IntPtr]::Zero)
+            [void][VergePermissionWindowCheck]::PostMessageW($hwnd,0x100,[IntPtr]27,[IntPtr]::Zero)
         } else {
             if ($mode -ne 'Deny') {
-                [void][VergeWindowCheck]::PostMessageW($hwnd,0x100,[IntPtr]9,[IntPtr]::Zero)
-                [void][VergeWindowCheck]::PostMessageW($hwnd,0x100,[IntPtr]9,[IntPtr]::Zero)
+                [void][VergePermissionWindowCheck]::PostMessageW($hwnd,0x100,[IntPtr]9,[IntPtr]::Zero)
+                [void][VergePermissionWindowCheck]::PostMessageW($hwnd,0x100,[IntPtr]9,[IntPtr]::Zero)
             }
-            [void][VergeWindowCheck]::PostMessageW($hwnd,0x100,[IntPtr]13,[IntPtr]::Zero)
+            [void][VergePermissionWindowCheck]::PostMessageW($hwnd,0x100,[IntPtr]13,[IntPtr]::Zero)
             if ($mode -ne 'Deny') {
                 Start-Sleep -Milliseconds 500
-                $review = [VergeWindowCheck]::Find($fixture.Id,'VergePermissionReview')
+                $review = [VergePermissionWindowCheck]::Find($fixture.Id,'VergePermissionReview')
                 Assert ($review -ne [IntPtr]::Zero) 'Summarized action bypassed full review'
                 Assert (!(Test-Path -LiteralPath $path)) 'Review entry approved before confirmation'
                 if ($mode -eq 'Approve') {
-                    [void][VergeWindowCheck]::PostMessageW($review,0x111,[IntPtr]1,[IntPtr]::Zero)
+                    [void][VergePermissionWindowCheck]::PostMessageW($review,0x111,[IntPtr]1,[IntPtr]::Zero)
                 } else {
-                    [void][VergeWindowCheck]::PostMessageW($review,0x10,[IntPtr]::Zero,[IntPtr]::Zero)
+                    [void][VergePermissionWindowCheck]::PostMessageW($review,0x10,[IntPtr]::Zero,[IntPtr]::Zero)
                 }
             }
         }
