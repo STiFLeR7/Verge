@@ -15,7 +15,7 @@ exists but the behavior is not yet protected by an automated contract;
 | Click-through outside visible material | PASS — dynamic `WS_EX_TRANSPARENT` assertion | PASS — expanded and collapsed input shapes | MANUAL — native hit-region coverage pending |
 | Interactive visible region | PASS — physical hover and native session/permission contracts | PASS — native mouse navigation under Xephyr | MANUAL — build-host snapshot only |
 | Multi-monitor placement | MANUAL | MANUAL | MANUAL |
-| Display/DPI/work-area changes | PASS — monitor work-area, `WM_DISPLAYCHANGE` and `WM_DPICHANGED` recovery | PASS — real RandR mode change in Xephyr | MANUAL |
+| Display/DPI/work-area changes | PASS — monitor work-area, `WM_DISPLAYCHANGE` and `WM_DPICHANGED` recovery | PASS — real RandR mode change in Xephyr | PASS — visible-frame geometry and screen-change notification contract |
 | Session/window lifecycle | PASS — fixture creation, interaction and cleanup | PASS — process start, interaction and termination under Xephyr | PASS — panel creation and termination contract |
 
 ## Commands
@@ -47,6 +47,8 @@ The executable contract is
 [`ui/ambient/macos/Tests/native_contract.swift`](../../ui/ambient/macos/Tests/native_contract.swift).
 The remaining `MANUAL` cells require real multi-display or interaction
 evidence before v1.0.0.
+
+Reliability runs use `scripts/soak.ps1` on Windows and `scripts/soak.sh` on Linux/macOS. Long-duration results are tracked in the [v1 verification ledger](../../docs/releases/V1_VERIFICATION.md); the presence of a collector does not count as a completed soak.
 
 Current evidence and its limits are recorded in
 [`docs/design/E2E_PORTABILITY_2026-09-10.md`](../../docs/design/E2E_PORTABILITY_2026-09-10.md).
