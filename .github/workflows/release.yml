@@ -41,7 +41,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with: {name: release-linux, path: dist/verge-linux-x86_64.tar.gz}
   macos:
-    runs-on: macos-15-arm64
+    runs-on: macos-latest
     environment: release
     steps:
       - uses: actions/checkout@v4
